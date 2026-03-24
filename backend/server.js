@@ -14,8 +14,16 @@ const PORT = process.env.PORT || 3000;
 app.set('trust proxy', 1);
 
 // ─── Security ───
-// Helmet o'chirildi — Telegram Mini App WebView bilan muammolar bo'ldi
-// Railway edge o'z security headerlarini qo'shadi
+// Telegram Mini App iframe uchun maxsus headerlar
+app.use((req, res, next) => {
+    // Telegram WebView iframe da ochilishi uchun X-Frame-Options o'chiriladi
+    res.removeHeader('X-Frame-Options');
+    // CSP: Telegram domenlariga ruxsat
+    res.setHeader('Content-Security-Policy',
+        "frame-ancestors 'self' https://web.telegram.org https://*.telegram.org https://telegram.org"
+    );
+    next();
+});
 
 app.use(cors({
     origin: true,  // barcha originlarga ruxsat
