@@ -63,6 +63,26 @@ app.use('/api/import', require('./src/routes/import'));
 app.use('/api/analytics', require('./src/routes/analytics'));
 app.use('/api/admin', require('./src/routes/admin'));
 
+// ─── Telegram Bot Webhook (bot port 3001 ga proxy) ───
+const http = require('http');
+app.post('/bot-webhook', (req, res) => {
+    const data = JSON.stringify(req.body);
+    const proxyReq = http.request({
+        hostname: 'localhost',
+        port: 3001,
+        path: '/bot-webhook',
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Content-Length': Buffer.byteLength(data),
+            'x-telegram-bot-api-secret-token': req.headers['x-telegram-bot-api-secret-token'] || '',
+        },
+    }, () => res.json({ ok: true }));
+    proxyReq.on('error', () => res.json({ ok: true }));
+    proxyReq.write(data);
+    proxyReq.end();
+});
+
 // ─── Health Check ───
 app.get('/api/health', (req, res) => {
     res.json({ status: 'OK', timestamp: new Date().toISOString() });
