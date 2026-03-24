@@ -20,12 +20,22 @@ function AppContent() {
     const [productId, setProductId] = useState(null);
     const [paymentOrderId, setPaymentOrderId] = useState(null);
     const [catalogCategory, setCatalogCategory] = useState('');
-    const { loading } = useAuth();
+    const { loading, error, retryAuth } = useAuth();
 
     // Dark mode persist
     useEffect(() => {
         const theme = localStorage.getItem('theme');
         if (theme) document.documentElement.setAttribute('data-theme', theme);
+    }, []);
+
+    // Click/Payme dan qaytganda — pending to'lovni tiklash
+    useEffect(() => {
+        const pendingId = localStorage.getItem('pendingPaymentOrderId');
+        if (pendingId) {
+            localStorage.removeItem('pendingPaymentOrderId');
+            setPaymentOrderId(pendingId);
+            setPage('payment');
+        }
     }, []);
 
     const navigate = (p, opts) => {
@@ -44,6 +54,26 @@ function AppContent() {
         return (
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh' }}>
                 <div className="loading-spinner" />
+            </div>
+        );
+    }
+
+    if (error) {
+        return (
+            <div style={{
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                height: '100vh', flexDirection: 'column', padding: 24, textAlign: 'center',
+            }}>
+                <div style={{ fontSize: 48, marginBottom: 16 }}>😔</div>
+                <h2 style={{ margin: '0 0 8px', fontSize: 20 }}>Xatolik yuz berdi</h2>
+                <p style={{ color: 'var(--text-secondary)', fontSize: 14, margin: '0 0 24px', lineHeight: 1.5 }}>
+                    Ilovani yuklashda muammo bo'ldi.<br />
+                    Iltimos, qayta urinib ko'ring.
+                </p>
+                <button className="btn-primary" onClick={retryAuth}
+                    style={{ maxWidth: 200, margin: '0 auto' }}>
+                    🔄 Qayta urinish
+                </button>
             </div>
         );
     }

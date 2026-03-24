@@ -68,12 +68,11 @@ export default function Cart({ onNavigate, onPayment }) {
 
             // Savatni bu yerda tozalamay, to'lov tasdiqlangandan keyin Payment.jsx da tozalanadi
             if (data.paymentUrl) {
-                const tg = window.Telegram?.WebApp;
-                if (tg?.openLink) {
-                    tg.openLink(data.paymentUrl);
-                } else {
-                    window.open(data.paymentUrl, '_blank');
-                }
+                // To'lov qaytganda order ID saqlanib qolishi uchun
+                localStorage.setItem('pendingPaymentOrderId', data.order.id);
+                // Click/Payme to'lov sahifasini shu oynada ochish
+                window.location.href = data.paymentUrl;
+                return; // Sahifa navigatsiya qiladi, keyingi kod ishlamaydi
             }
 
             onPayment?.(data.order.id);

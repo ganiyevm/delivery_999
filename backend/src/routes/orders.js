@@ -108,7 +108,7 @@ router.post('/', auth, async (req, res, next) => {
         // To'lov URL yaratish
         let paymentUrl = '';
         if (paymentMethod === 'click') {
-            paymentUrl = `https://my.click.uz/services/pay?service_id=${process.env.CLICK_SERVICE_ID}&merchant_id=${process.env.CLICK_MERCHANT_ID}&amount=${total}&transaction_param=${order.orderNumber}&merchant_user_id=${process.env.CLICK_MERCHANT_USER_ID}&return_url=https://t.me/${process.env.BOT_USERNAME}`;
+            paymentUrl = `https://my.click.uz/services/pay?service_id=${process.env.CLICK_SERVICE_ID}&merchant_id=${process.env.CLICK_MERCHANT_ID}&amount=${total}&transaction_param=${order.orderNumber}&merchant_user_id=${process.env.CLICK_MERCHANT_USER_ID}&return_url=${encodeURIComponent(process.env.WEBAPP_URL || process.env.FRONTEND_URL || 'https://t.me/' + process.env.BOT_USERNAME)}`;
         } else if (paymentMethod === 'payme') {
             const paymeData = Buffer.from(
                 `m=${process.env.PAYME_MERCHANT_ID};ac.order_id=${order.orderNumber};a=${total * 100};l=uz`
