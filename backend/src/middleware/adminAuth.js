@@ -14,6 +14,7 @@ const adminAuth = (req, res, next) => {
 
         req.adminId = decoded.adminId;
         req.isAdmin = true;
+        req.isSuperAdmin = decoded.isSuperAdmin || false;
         next();
     } catch (error) {
         if (error.name === 'JsonWebTokenError') {

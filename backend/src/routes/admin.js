@@ -217,6 +217,32 @@ router.delete('/products/:id', async (req, res, next) => {
     } catch (error) { next(error); }
 });
 
+// ─── Narxlarni ko'rish (filiallar bo'yicha) ───
+router.get('/products/:id/prices', async (req, res, next) => {
+    try {
+        const stocks = await Stock.find({ product: req.params.id })
+            .populate('branch', 'number name')
+            .lean();
+        res.json(stocks);
+    } catch (error) { next(error); }
+});
+
+// ─── Narxni yangilash — faqat super admin ───
+router.put('/products/:id/prices', async (req, res, next) => {
+    try {
+        if (!req.isSuperAdmin) {
+            return res.status(403).json({ error: 'Faqat super admin narxni o\'zgartira oladi' });
+        }
+        const { prices } = req.body; // [{ stockId, price }]
+        if (!Array.isArray(prices)) return res.status(400).json({ error: 'prices array kerak' });
+
+        await Promise.all(prices.map(({ stockId, price }) =>
+            Stock.findByIdAndUpdate(stockId, { price: parseFloat(price) })
+        ));
+        res.json({ message: 'Narxlar yangilandi' });
+    } catch (error) { next(error); }
+});
+
 router.patch('/products/:id/toggle', async (req, res, next) => {
     try {
         const product = await Product.findById(req.params.id);

@@ -14,6 +14,7 @@ export default function Login() {
         try {
             const { data } = await api.post('/auth/admin/login', { username, password });
             localStorage.setItem('admin_token', data.token);
+            localStorage.setItem('is_super_admin', data.admin?.isSuperAdmin ? '1' : '0');
             window.location.href = '/admin/';
         } catch (err) {
             setError(err.response?.data?.error || 'Xatolik');

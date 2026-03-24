@@ -146,13 +146,16 @@ router.post('/admin/login', async (req, res, next) => {
             return res.status(401).json({ error: 'Login yoki parol noto\'g\'ri' });
         }
 
+        const SUPER_ADMIN = process.env.SUPER_ADMIN_USERNAME || 'admin';
+        const isSuperAdmin = username === SUPER_ADMIN;
+
         const token = jwt.sign(
-            { adminId: username, isAdmin: true },
+            { adminId: username, isAdmin: true, isSuperAdmin },
             process.env.ADMIN_JWT_SECRET,
             { expiresIn: '8h' }
         );
 
-        res.json({ token, admin: { username } });
+        res.json({ token, admin: { username, isSuperAdmin } });
     } catch (error) {
         next(error);
     }
