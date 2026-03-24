@@ -14,21 +14,11 @@ const PORT = process.env.PORT || 3000;
 app.set('trust proxy', 1);
 
 // ─── Security ───
-app.use(helmet({
-    contentSecurityPolicy: false,
-    crossOriginEmbedderPolicy: false,
-    crossOriginOpenerPolicy: false,
-    crossOriginResourcePolicy: false,
-    referrerPolicy: false,
-    frameguard: false,
-}));
+// Helmet o'chirildi — Telegram Mini App WebView bilan muammolar bo'ldi
+// Railway edge o'z security headerlarini qo'shadi
+
 app.use(cors({
-    origin: [
-        process.env.FRONTEND_URL,
-        process.env.ADMIN_URL,
-        'http://localhost:5173',
-        'http://localhost:5174',
-    ].filter(Boolean),
+    origin: true,  // barcha originlarga ruxsat
     credentials: true,
 }));
 
