@@ -68,11 +68,19 @@ export default function Cart({ onNavigate, onPayment }) {
 
             // Savatni bu yerda tozalamay, to'lov tasdiqlangandan keyin Payment.jsx da tozalanadi
             if (data.paymentUrl) {
-                // To'lov qaytganda order ID saqlanib qolishi uchun
-                localStorage.setItem('pendingPaymentOrderId', data.order.id);
-                // Click/Payme to'lov sahifasini shu oynada ochish
-                window.location.href = data.paymentUrl;
-                return; // Sahifa navigatsiya qiladi, keyingi kod ishlamaydi
+                const tg = window.Telegram?.WebApp;
+                if (tg?.openLink) {
+                    // Telegram ichida: tizim brauzerida ochish
+                    // Bu Click mobile app ni ishga tushiradi (deep link)
+                    // Mini app Telegram da ochiq qoladi — Payment.jsx polling ishlaydi
+                    tg.openLink(data.paymentUrl);
+                } else {
+                    // Oddiy brauzer (noutbuk/web):
+                    // localStorage ga saqlash va Click sahifasiga o'tish
+                    localStorage.setItem('pendingPaymentOrderId', data.order.id);
+                    window.location.href = data.paymentUrl;
+                    return;
+                }
             }
 
             onPayment?.(data.order.id);
