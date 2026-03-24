@@ -81,6 +81,21 @@ app.post('/bot-webhook', (req, res) => {
     proxyReq.end();
 });
 
+// ─── Click webhook short aliases (Click merchant panel uchun) ───
+const ClickService = require('./src/services/click.service');
+app.get('/click/prepare', (req, res) => res.json({ error: 0, error_note: 'OK' }));
+app.get('/click/complete', (req, res) => res.json({ error: 0, error_note: 'OK' }));
+app.post('/click/prepare', async (req, res) => {
+    console.log('[CLICK SHORT] prepare keldi:', JSON.stringify(req.body));
+    const result = await ClickService.prepare(req.body);
+    res.json(result);
+});
+app.post('/click/complete', async (req, res) => {
+    console.log('[CLICK SHORT] complete keldi:', JSON.stringify(req.body));
+    const result = await ClickService.complete(req.body);
+    res.json(result);
+});
+
 // ─── Health Check ───
 app.get('/api/health', (req, res) => {
     res.json({ status: 'OK', timestamp: new Date().toISOString() });
