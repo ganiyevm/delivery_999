@@ -56,6 +56,13 @@ app.get('/api/health', (req, res) => {
     res.json({ status: 'OK', timestamp: new Date().toISOString() });
 });
 
+// ─── Admin panel static ───
+const adminDist = path.join(__dirname, '../admin/dist');
+app.use('/admin', express.static(adminDist));
+app.get('/admin/*', (req, res) => {
+    res.sendFile(path.join(adminDist, 'index.html'));
+});
+
 // ─── Frontend static (Mini App) ───
 const frontendDist = path.join(__dirname, '../frontend/dist');
 app.use(express.static(frontendDist, {

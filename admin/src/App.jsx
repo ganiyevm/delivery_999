@@ -11,11 +11,11 @@ import ImportPage from './pages/import/ImportPage';
 
 function PrivateRoute({ children }) {
     const token = localStorage.getItem('admin_token');
-    return token ? children : <Navigate to="/login" />;
+    return token ? children : <Navigate to="/login" replace />;
 }
 
 export default function App() {
-    const isLogin = window.location.pathname === '/login';
+    const isLogin = window.location.pathname === '/admin/login';
 
     if (isLogin) return <Login />;
 

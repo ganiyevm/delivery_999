@@ -5,6 +5,13 @@ RUN npm ci
 COPY frontend/ .
 RUN npm run build
 
+FROM node:20-alpine AS admin-build
+WORKDIR /app/admin
+COPY admin/package*.json ./
+RUN npm ci
+COPY admin/ .
+RUN npm run build
+
 FROM node:20-alpine
 WORKDIR /app
 
@@ -20,6 +27,9 @@ COPY bot/ ./bot/
 
 # Frontend dist
 COPY --from=frontend-build /app/frontend/dist ./frontend/dist
+
+# Admin dist
+COPY --from=admin-build /app/admin/dist ./admin/dist
 
 # Start script
 COPY start.sh ./
