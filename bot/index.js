@@ -1,6 +1,7 @@
 require('dotenv').config({ path: '../backend/.env' });
-const { Bot, session } = require('grammy');
+const { Bot, session, webhookCallback } = require('grammy');
 const mongoose = require('../backend/node_modules/mongoose');
+const express = require('express');
 
 // Models (backend bilan ulashiladi)
 require('../backend/src/models/User');
@@ -42,10 +43,29 @@ async function main() {
         await mongoose.connect(process.env.MONGODB_URI);
         console.log('✅ MongoDB ulandi (bot)');
 
-        await bot.start({
-            drop_pending_updates: true,
-            onStart: () => console.log('🤖 Apteka999 Bot ishga tushdi!'),
-        });
+        const webhookUrl = process.env.WEBAPP_URL;
+
+        if (webhookUrl && process.env.NODE_ENV === 'production') {
+            // Production: webhook rejimi (409 conflict yo'q)
+            const secret = process.env.BOT_TOKEN.replace(':', '_');
+            await bot.api.setWebhook(`${webhookUrl}/bot-webhook`, {
+                secret_token: secret,
+                drop_pending_updates: true,
+            });
+            console.log('🤖 Bot webhook o\'rnatildi:', `${webhookUrl}/bot-webhook`);
+
+            // Webhook so'rovlarni qabul qilish uchun kichik server
+            const app = express();
+            app.use(express.json());
+            app.post('/bot-webhook', webhookCallback(bot, 'express'));
+            app.listen(3001, () => console.log('🔗 Bot webhook server: 3001'));
+        } else {
+            // Development: polling rejimi
+            await bot.start({
+                drop_pending_updates: true,
+                onStart: () => console.log('🤖 Bot polling rejimida ishga tushdi!'),
+            });
+        }
     } catch (error) {
         console.error('❌ Bot ishga tushishda xato:', error);
         process.exit(1);

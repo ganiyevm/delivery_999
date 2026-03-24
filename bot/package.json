@@ -8,9 +8,10 @@
         "dev": "node --watch index.js"
     },
     "dependencies": {
-        "grammy": "^1.30.0",
         "axios": "^1.7.0",
         "dotenv": "^16.4.0",
+        "express": "^5.2.1",
+        "grammy": "^1.30.0",
         "mongoose": "^8.8.0",
         "xlsx": "^0.18.5"
     }
