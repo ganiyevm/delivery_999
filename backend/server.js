@@ -15,8 +15,10 @@ app.set('trust proxy', 1);
 
 // ─── Security ───
 app.use(helmet({
-    contentSecurityPolicy: false,  // Telegram Mini App uchun CSP o'chiriladi
+    contentSecurityPolicy: false,
     crossOriginEmbedderPolicy: false,
+    crossOriginOpenerPolicy: false,
+    crossOriginResourcePolicy: false,
 }));
 app.use(cors({
     origin: [
