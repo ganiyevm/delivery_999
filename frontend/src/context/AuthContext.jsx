@@ -10,19 +10,24 @@ export function AuthProvider({ children }) {
 
     useEffect(() => {
         const init = async () => {
+            const tg = window.Telegram?.WebApp;
+
+            // Telegram ga darhol "tayyor" signalini yuborish (spinner o'chishi uchun)
+            if (tg) {
+                tg.ready();
+                tg.expand();
+            }
+
             try {
-                // Telegram WebApp initData yordamida autentifikatsiya
-                const tg = window.Telegram?.WebApp;
                 if (tg?.initData) {
+                    // Telegram WebApp rejimi
                     const { data } = await authAPI.telegramAuth(tg.initData);
                     setToken(data.token);
                     setUser(data.user);
                     localStorage.setItem('token', data.token);
                     localStorage.setItem('user', JSON.stringify(data.user));
-                    tg.ready();
-                    tg.expand();
                 } else {
-                    // Development mode — har doim yangi dev token olish
+                    // Development mode
                     const { data } = await authAPI.devLogin();
                     setToken(data.token);
                     setUser(data.user);
