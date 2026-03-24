@@ -43,6 +43,7 @@ async function main() {
         console.log('✅ MongoDB ulandi (bot)');
 
         await bot.start({
+            drop_pending_updates: true,
             onStart: () => console.log('🤖 Apteka999 Bot ishga tushdi!'),
         });
     } catch (error) {

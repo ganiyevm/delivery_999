@@ -42,6 +42,14 @@ app.use('/api/', limiter);
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
 
+// ─── Request logger (Click validation uchun) ───
+app.use((req, res, next) => {
+    if (req.path.includes('click') || req.path.includes('payme')) {
+        console.log(`[REQ] ${req.method} ${req.path} | IP: ${req.ip} | Body: ${JSON.stringify(req.body)}`);
+    }
+    next();
+});
+
 // ─── Routes ───
 app.use('/api/auth', require('./src/routes/auth'));
 app.use('/api/products', require('./src/routes/products'));
