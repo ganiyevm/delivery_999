@@ -91,10 +91,16 @@ const orderSchema = new mongoose.Schema({
     timestamps: true,
 });
 
-// Auto-generate orderNumber
-orderSchema.pre('save', function (next) {
+// Auto-generate orderNumber: APT-0001, APT-0002, ...
+orderSchema.pre('save', async function (next) {
     if (!this.orderNumber) {
-        this.orderNumber = 'APT' + Date.now().toString(36).toUpperCase() + Math.random().toString(36).substring(2, 5).toUpperCase();
+        const last = await this.constructor.findOne({}, { orderNumber: 1 }, { sort: { createdAt: -1 } });
+        let num = 1;
+        if (last?.orderNumber) {
+            const match = last.orderNumber.match(/APT-(\d+)/);
+            if (match) num = parseInt(match[1]) + 1;
+        }
+        this.orderNumber = 'APT-' + String(num).padStart(4, '0');
     }
     next();
 });
