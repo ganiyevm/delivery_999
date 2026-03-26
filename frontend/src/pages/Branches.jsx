@@ -26,7 +26,7 @@ function MapButtons({ branch }) {
             label: 'Yandex Go',
             icon: '🚕',
             url: hasCoords
-                ? `https://3.redirect.appmetrica.yandex.com/route?end-lat=${lat}&end-lon=${lng}&end-name=${encodeURIComponent(branch.address || '')}&ref=apteka999&appmetrica_tracking_id=1178268795219968000`
+                ? `https://go.yandex/route?end-lat=${lat}&end-lon=${lng}&end-name=${encodeURIComponent(branch.address || '')}`
                 : `https://go.yandex`,
         },
         {
