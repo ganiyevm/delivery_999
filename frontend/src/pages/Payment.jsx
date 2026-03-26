@@ -2,21 +2,23 @@ import React, { useState, useEffect } from 'react';
 import { paymentAPI } from '../api/index';
 import { useCart } from '../context/CartContext';
 
-const DB_POLL_INTERVAL     = 5000;  // Bazani har 5 sekundda tekshir
-const CLICK_CHECK_INTERVAL = 15000; // Click API ni har 15 sekundda tekshir
-const TIMEOUT_MS           = 5 * 60 * 1000; // 5 daqiqadan keyin timeout
+const DB_POLL_INTERVAL = 5000;  // Bazani har 5 sekundda tekshir
+const API_CHECK_INTERVAL = 15000; // Click/Payme API ni har 15 sekundda tekshir
+const TIMEOUT_MS = 5 * 60 * 1000; // 5 daqiqadan keyin timeout
 
 export default function Payment({ orderId, onDone }) {
-    const [status, setStatus]         = useState('pending');
-    const [orderInfo, setOrderInfo]   = useState(null);
-    const [timedOut, setTimedOut]     = useState(false);
-    const [checking, setChecking]     = useState(false);
+    const [status, setStatus] = useState('pending');
+    const [orderInfo, setOrderInfo] = useState(null);
+    const [timedOut, setTimedOut] = useState(false);
+    const [checking, setChecking] = useState(false);
     const [checkError, setCheckError] = useState('');
+    const [payMethod, setPayMethod] = useState(''); // click | payme
     const { clearCart } = useCart();
 
     useEffect(() => {
         if (!orderId) return;
         let done = false;
+        let detectedMethod = '';
 
         const confirm = (info) => {
             if (done) return;
@@ -36,15 +38,27 @@ export default function Payment({ orderId, onDone }) {
             if (done) return;
             try {
                 const { data } = await paymentAPI.getStatus(orderId);
+                // To'lov usulini aniqlash
+                if (data.paymentMethod && !detectedMethod) {
+                    detectedMethod = data.paymentMethod;
+                    setPayMethod(data.paymentMethod);
+                }
                 if (data.paymentStatus === 'paid') confirm(data);
                 else if (data.paymentStatus === 'failed') fail();
             } catch { /* ignore */ }
         };
 
-        const checkClickApi = async () => {
+        const checkPaymentApi = async () => {
             if (done) return;
             try {
-                const { data } = await paymentAPI.checkClick(orderId);
+                let data;
+                if (detectedMethod === 'payme') {
+                    const res = await paymentAPI.checkPayme(orderId);
+                    data = res.data;
+                } else {
+                    const res = await paymentAPI.checkClick(orderId);
+                    data = res.data;
+                }
                 if (data.paid) {
                     const { data: info } = await paymentAPI.getStatus(orderId);
                     confirm(info);
@@ -58,14 +72,14 @@ export default function Payment({ orderId, onDone }) {
         // 2. Bazani polling
         const dbInterval = setInterval(checkDb, DB_POLL_INTERVAL);
 
-        // 3. Click API tekshirish
-        const clickInterval = setInterval(checkClickApi, CLICK_CHECK_INTERVAL);
+        // 3. Click/Payme API tekshirish
+        const apiInterval = setInterval(checkPaymentApi, API_CHECK_INTERVAL);
 
-        // 4. Foydalanuvchi Click dan qaytishi bilan — DARHOL tekshir
+        // 4. Foydalanuvchi to'lov sahifasidan qaytishi bilan — DARHOL tekshir
         const onVisible = () => {
             if (!done && document.visibilityState === 'visible') {
                 checkDb();
-                setTimeout(checkClickApi, 600);
+                setTimeout(checkPaymentApi, 600);
             }
         };
         document.addEventListener('visibilitychange', onVisible);
@@ -77,11 +91,13 @@ export default function Payment({ orderId, onDone }) {
 
         return () => {
             clearInterval(dbInterval);
-            clearInterval(clickInterval);
+            clearInterval(apiInterval);
             clearTimeout(timeout);
             document.removeEventListener('visibilitychange', onVisible);
         };
     }, [orderId]);
+
+    const providerName = payMethod === 'payme' ? 'Payme' : 'Click';
 
     if (status === 'success') {
         return (
@@ -132,7 +148,7 @@ export default function Payment({ orderId, onDone }) {
                         <div className="icon">⏱</div>
                         <h2>To'lov tekshirilmoqda</h2>
                         <p style={{ textAlign: 'center', color: 'var(--text-secondary)', lineHeight: 1.6 }}>
-                            Agar Click orqali to'lov amalga oshgan bo'lsa,
+                            Agar {providerName} orqali to'lov amalga oshgan bo'lsa,
                             buyurtma tez orada yangilanadi.
                         </p>
                         <button className="btn-primary"
@@ -150,7 +166,7 @@ export default function Payment({ orderId, onDone }) {
                     <>
                         <div className="payment-loader" />
                         <h2>To'lov tasdiqlanmoqda...</h2>
-                        <p>Click orqali to'lovni amalga oshiring.<br />Bu sahifa avtomatik yangilanadi.</p>
+                        <p>{providerName || 'To\'lov tizimi'} orqali to'lovni amalga oshiring.<br />Bu sahifa avtomatik yangilanadi.</p>
 
                         <button
                             className="btn-primary"
@@ -160,7 +176,14 @@ export default function Payment({ orderId, onDone }) {
                                 setChecking(true);
                                 setCheckError('');
                                 try {
-                                    const { data } = await paymentAPI.checkClick(orderId);
+                                    let data;
+                                    if (payMethod === 'payme') {
+                                        const res = await paymentAPI.checkPayme(orderId);
+                                        data = res.data;
+                                    } else {
+                                        const res = await paymentAPI.checkClick(orderId);
+                                        data = res.data;
+                                    }
                                     if (data.paid) {
                                         const { data: info } = await paymentAPI.getStatus(orderId);
                                         clearCart();

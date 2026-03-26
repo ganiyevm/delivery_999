@@ -25,8 +25,9 @@ export const ordersAPI = {
 };
 
 export const paymentAPI = {
-    getStatus:    (orderId) => api.get(`/payment/status/${orderId}`),
-    checkClick:   (orderId) => api.get(`/payment/click/check/${orderId}`),
+    getStatus: (orderId) => api.get(`/payment/status/${orderId}`),
+    checkClick: (orderId) => api.get(`/payment/click/check/${orderId}`),
+    checkPayme: (orderId) => api.get(`/payment/payme/check/${orderId}`),
 };
 
 export const userAPI = {

@@ -9,9 +9,9 @@ const Order = require('../models/Order');
 function clickApiGet(path) {
     return new Promise((resolve) => {
         const merchantId = process.env.CLICK_MERCHANT_USER_ID;
-        const secretKey  = process.env.CLICK_SECRET_KEY;
-        const timestamp  = Math.floor(Date.now() / 1000).toString();
-        const digest     = crypto.createHash('sha1').update(timestamp + secretKey).digest('hex');
+        const secretKey = process.env.CLICK_SECRET_KEY;
+        const timestamp = Math.floor(Date.now() / 1000).toString();
+        const digest = crypto.createHash('sha1').update(timestamp + secretKey).digest('hex');
 
         const options = {
             hostname: 'api.click.uz',
@@ -124,11 +124,56 @@ router.get('/click/check/:orderId', async (req, res, next) => {
     }
 });
 
+// ─── Payme to'lov tekshirish ───
+router.get('/payme/check/:orderId', async (req, res, next) => {
+    try {
+        const order = await Order.findById(req.params.orderId);
+        if (!order) return res.status(404).json({ error: 'Buyurtma topilmadi' });
+
+        // 1. Bazada allaqachon paid
+        if (order.paymentStatus === 'paid') {
+            return res.json({ paid: true, source: 'db' });
+        }
+
+        // 2. paymeState = 2 (performed) — lekin paymentStatus yangilanmagan
+        if (order.paymeState === 2) {
+            return res.json({ paid: true, source: 'payme_state' });
+        }
+
+        // 3. Bekor qilingan
+        if (order.paymeState === -1 || order.paymeState === -2) {
+            return res.json({
+                paid: false,
+                reason: 'cancelled',
+                message: "To'lov bekor qilingan",
+            });
+        }
+
+        // 4. Tranzaksiya yaratilgan, lekin hali perform qilinmagan
+        if (order.paymeState === 1) {
+            return res.json({
+                paid: false,
+                reason: 'pending',
+                message: "To'lov kutilmoqda",
+            });
+        }
+
+        // 5. Hali boshlanmagan
+        res.json({
+            paid: false,
+            reason: 'not_started',
+            message: "Payme to'lov boshlanmagan",
+        });
+    } catch (error) {
+        next(error);
+    }
+});
+
 // ─── To'lov holati (polling uchun) ───
 router.get('/status/:orderId', async (req, res, next) => {
     try {
         const order = await Order.findById(req.params.orderId)
-            .select('orderNumber status paymentStatus total bonusEarned')
+            .select('orderNumber status paymentStatus paymentMethod total bonusEarned')
             .lean();
 
         if (!order) return res.status(404).json({ error: 'Buyurtma topilmadi' });
@@ -137,6 +182,7 @@ router.get('/status/:orderId', async (req, res, next) => {
             orderNumber: order.orderNumber,
             status: order.status,
             paymentStatus: order.paymentStatus,
+            paymentMethod: order.paymentMethod,
             total: order.total,
             bonusEarned: order.bonusEarned,
         });

@@ -55,6 +55,14 @@ const orderSchema = new mongoose.Schema({
     paymentId: { type: String, default: '' },
     clickPrepareId: { type: String, default: '' }, // Click prepare bosqichidan kelgan merchant_prepare_id
 
+    // Payme transaction ma'lumotlari
+    paymeTransId: { type: String, default: '' },      // Payme transaction ID
+    paymeState: { type: Number, default: 0 },          // 0=new, 1=created, 2=performed, -1=cancelled_before, -2=cancelled_after
+    paymeCreateTime: { type: Number, default: 0 },     // Transaction yaratilgan vaqt (ms)
+    paymePerformTime: { type: Number, default: 0 },    // To'lov tasdiqlangan vaqt (ms)
+    paymeCancelTime: { type: Number, default: 0 },     // Bekor qilingan vaqt (ms)
+    paymeReason: { type: Number },                     // Bekor qilish sababi
+
     // 6 bosqich
     status: {
         type: String,
