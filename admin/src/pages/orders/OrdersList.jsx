@@ -150,8 +150,43 @@ export default function OrdersList() {
                         </div>
                         <div style={{ fontSize: 14, lineHeight: 2 }}>
                             <p><strong>Mijoz:</strong> {selected.customerName}</p>
-                            <p><strong>Tel:</strong> {selected.phone}</p>
-                            <p><strong>Manzil:</strong> {selected.address}</p>
+                            <p><strong>Tel:</strong> <a href={`tel:${selected.phone}`} style={{ color: 'var(--primary)' }}>{selected.phone}</a></p>
+
+                            {/* Manzil + xarita tugmalari */}
+                            <div style={{ marginBottom: 8 }}>
+                                <strong>Manzil:</strong> {selected.address || '—'}
+                                {selected.address && (() => {
+                                    const coordMatch = selected.address.match(/([-\d.]+),\s*([-\d.]+)/);
+                                    const q = coordMatch
+                                        ? `${coordMatch[1]},${coordMatch[2]}`
+                                        : encodeURIComponent(selected.address + ', Toshkent');
+                                    const googleUrl = coordMatch
+                                        ? `https://www.google.com/maps?q=${q}`
+                                        : `https://www.google.com/maps/search/?api=1&query=${q}`;
+                                    const yandexUrl = coordMatch
+                                        ? `https://yandex.uz/maps/?pt=${coordMatch[2]},${coordMatch[1]}&z=17`
+                                        : `https://yandex.uz/maps/?text=${q}`;
+                                    return (
+                                        <div style={{ display: 'flex', gap: 6, marginTop: 4 }}>
+                                            <a href={googleUrl} target="_blank" rel="noreferrer"
+                                                style={{ padding: '3px 10px', borderRadius: 6, background: '#4285F4', color: 'white', fontSize: 12, textDecoration: 'none', fontWeight: 600 }}>
+                                                🗺 Google
+                                            </a>
+                                            <a href={yandexUrl} target="_blank" rel="noreferrer"
+                                                style={{ padding: '3px 10px', borderRadius: 6, background: '#FC3F1D', color: 'white', fontSize: 12, textDecoration: 'none', fontWeight: 600 }}>
+                                                🧭 Yandex
+                                            </a>
+                                        </div>
+                                    );
+                                })()}
+                            </div>
+
+                            {selected.notes && (
+                                <p style={{ background: 'var(--bg)', padding: '6px 10px', borderRadius: 8, borderLeft: '3px solid var(--primary)' }}>
+                                    <strong>Izoh:</strong> {selected.notes}
+                                </p>
+                            )}
+
                             <p><strong>To'lov:</strong> {selected.paymentMethod} ({selected.paymentStatus})
                             {selected.paymentStatus === 'pending' && (
                                 <button className="btn btn-primary" style={{ marginLeft: 8, padding: '2px 10px', fontSize: 12 }}
