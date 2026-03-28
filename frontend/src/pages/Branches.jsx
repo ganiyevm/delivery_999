@@ -25,6 +25,9 @@ function MapButtons({ branch }) {
         {
             label: 'Yandex Go',
             icon: '🚕',
+            deepLink: hasCoords
+                ? `yandextaxi://route?end-lat=${lat}&end-lon=${lng}&end-name=${encodeURIComponent(branch.address || '')}`
+                : null,
             url: hasCoords
                 ? `https://go.yandex/route?end-lat=${lat}&end-lon=${lng}&end-name=${encodeURIComponent(branch.address || '')}`
                 : `https://go.yandex`,
@@ -38,10 +41,19 @@ function MapButtons({ branch }) {
         },
     ];
 
-    const openLink = (url) => {
+    const openLink = (url, deepLink) => {
         const tg = window.Telegram?.WebApp;
-        if (tg?.openLink) tg.openLink(url);
-        else window.open(url, '_blank');
+        if (deepLink) {
+            // Deep link: to'g'ridan ilovani och, ilova yo'q bo'lsa web ga tush
+            const fallback = () => { if (tg?.openLink) tg.openLink(url); else window.open(url, '_blank'); };
+            const hidden = () => { document.removeEventListener('visibilitychange', hidden); clearTimeout(timer); };
+            document.addEventListener('visibilitychange', hidden);
+            const timer = setTimeout(fallback, 1800);
+            window.location.href = deepLink;
+        } else {
+            if (tg?.openLink) tg.openLink(url);
+            else window.open(url, '_blank');
+        }
     };
 
     return (
@@ -49,7 +61,7 @@ function MapButtons({ branch }) {
             {maps.map(m => (
                 <button
                     key={m.label}
-                    onClick={() => openLink(m.url)}
+                    onClick={() => openLink(m.url, m.deepLink)}
                     style={{
                         display: 'inline-flex', alignItems: 'center', gap: 4,
                         padding: '5px 12px', borderRadius: 20, fontSize: 12, fontWeight: 600,
