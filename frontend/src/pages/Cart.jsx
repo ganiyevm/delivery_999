@@ -27,20 +27,17 @@ export default function Cart({ onNavigate, onPayment }) {
                 const { latitude, longitude } = pos.coords;
                 const coords = `${latitude.toFixed(6)}, ${longitude.toFixed(6)}`;
                 try {
+                    // Yandex Geocoder — Toshkent uy raqamlarini ham qaytaradi
                     const res = await fetch(
-                        `https://nominatim.openstreetmap.org/reverse?lat=${latitude}&lon=${longitude}&format=json&zoom=18&addressdetails=1`,
-                        { headers: { 'Accept-Language': 'uz,ru' } }
+                        `https://geocode-maps.yandex.ru/1.x/?apikey=b282d82a-e502-4d33-acb3-d5bd433af913&geocode=${longitude},${latitude}&format=json&results=1&lang=uz_UZ`
                     );
                     const data = await res.json();
-                    // display_name: "2/1, Bahodir ko'chasi, Yunusobod, Toshkent, O'zbekiston"
-                    // Oxirgi 2 qism (viloyat, mamlakat) — keraksiz, qolganini olamiz
-                    const dnParts = (data.display_name || '').split(',').map(s => s.trim()).filter(Boolean);
-                    // Mamlakat va viloyatni chiqarib tashlaymiz
-                    const meaningful = dnParts.filter(p =>
-                        p !== "O'zbekiston" && p !== 'Uzbekistan' && !p.includes('viloyat') && !p.includes('область')
-                    );
-                    // Ko'pi bilan 4 ta qism: uy, ko'cha, tuman, shahar
-                    const humanAddr = meaningful.slice(0, 4).join(', ');
+                    const geoObj = data?.response?.GeoObjectCollection?.featureMember?.[0]?.GeoObject;
+                    const formatted = geoObj?.metaDataProperty?.GeocoderMetaData?.Address?.formatted || '';
+                    // formatted: "O'zbekiston, Toshkent, Bahodir ko'chasi, 2/1"
+                    // Mamlakat (birinchi qism) ni chiqarib tashlaymiz
+                    const parts = formatted.split(',').map(s => s.trim()).filter(Boolean);
+                    const humanAddr = parts.length > 1 ? parts.slice(1).join(', ') : formatted;
                     // Koordinatalarni ham saqlash — admin map tugmalari aniq pin ochadi
                     setAddress(humanAddr ? `${humanAddr} (${coords})` : coords);
                 } catch {
