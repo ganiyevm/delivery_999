@@ -25,22 +25,27 @@ export default function Cart({ onNavigate, onPayment }) {
         navigator.geolocation.getCurrentPosition(
             async (pos) => {
                 const { latitude, longitude } = pos.coords;
+                const coords = `${latitude.toFixed(6)}, ${longitude.toFixed(6)}`;
                 try {
                     const res = await fetch(
-                        `https://nominatim.openstreetmap.org/reverse?lat=${latitude}&lon=${longitude}&format=json&accept-language=uz`,
+                        `https://nominatim.openstreetmap.org/reverse?lat=${latitude}&lon=${longitude}&format=json&zoom=18&addressdetails=1`,
                         { headers: { 'Accept-Language': 'uz,ru' } }
                     );
                     const data = await res.json();
                     const a = data.address || {};
                     const parts = [
-                        a.road || a.pedestrian || a.suburb,
+                        a.road || a.pedestrian || a.footway || a.path,
                         a.house_number,
-                        a.city_district || a.suburb || a.neighbourhood,
-                        a.city || a.town || a.village,
+                        a.suburb || a.neighbourhood || a.city_district,
+                        a.city || a.town || a.village || a.county,
                     ].filter(Boolean);
-                    setAddress(parts.length ? parts.join(', ') : data.display_name || `${latitude.toFixed(5)}, ${longitude.toFixed(5)}`);
+                    const humanAddr = parts.length >= 2
+                        ? parts.join(', ')
+                        : (data.display_name?.split(',').slice(0, 3).join(',').trim() || '');
+                    // Koordinatalarni ham saqlash — admin map tugmalari aniq pin ochadi
+                    setAddress(humanAddr ? `${humanAddr} (${coords})` : coords);
                 } catch {
-                    setAddress(`${latitude.toFixed(5)}, ${longitude.toFixed(5)}`);
+                    setAddress(coords);
                 }
                 setGeoLoading(false);
             },
@@ -48,7 +53,7 @@ export default function Cart({ onNavigate, onPayment }) {
                 setGeoLoading(false);
                 alert('Joylashuvni aniqlash imkonsiz. Ruxsat bering yoki qo\'lda kiriting.');
             },
-            { enableHighAccuracy: true, timeout: 10000 }
+            { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
         );
     };
 
