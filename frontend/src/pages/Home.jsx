@@ -35,16 +35,8 @@ export default function Home({ onNavigate, onProduct, onScanner }) {
             {/* Header */}
             <header className="header">
                 <div className="header-logo">
-                    <svg width="56" height="36" viewBox="0 0 56 36" fill="none">
-                        <circle cx="10" cy="18" r="10" fill="#3DB54A"/>
-                        <circle cx="28" cy="18" r="10" fill="rgba(255,255,255,0.25)"/>
-                        <circle cx="46" cy="18" r="10" fill="#3DB54A"/>
-                        <circle cx="28" cy="18" r="10" fill="white" fillOpacity="0.15"/>
-                        <text x="10" y="23" textAnchor="middle" fill="white" fontWeight="800" fontSize="13" fontFamily="Nunito,sans-serif">9</text>
-                        <text x="28" y="23" textAnchor="middle" fill="white" fontWeight="800" fontSize="13" fontFamily="Nunito,sans-serif">9</text>
-                        <text x="46" y="23" textAnchor="middle" fill="white" fontWeight="800" fontSize="13" fontFamily="Nunito,sans-serif">9</text>
-                    </svg>
-                    <h1>Сеть Аптек<span>999 — Тошкент</span></h1>
+                    <img src="/logo999.jpg" alt="999" style={{ height: 40, width: 40, borderRadius: 10, objectFit: 'cover' }} />
+                    <h1>Сеть Аптек 999<span>Тошкент бўйлаб 20 филиал</span></h1>
                 </div>
                 <div className="header-actions">
                     <button className="header-btn" onClick={onScanner}>📷</button>
