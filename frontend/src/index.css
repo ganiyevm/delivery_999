@@ -59,6 +59,7 @@ body {
 @keyframes spin { to { transform: rotate(360deg); } }
 @keyframes scan { 0%,100% { top: 10%; } 50% { top: 85%; } }
 @keyframes shimmer { 0% { background-position: -200% 0; } 100% { background-position: 200% 0; } }
+@keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
 @keyframes slideIn { from { transform: translateX(-100%); } to { transform: translateX(0); } }
 
 .fade-up { animation: fadeUp 0.3s ease-out; }
