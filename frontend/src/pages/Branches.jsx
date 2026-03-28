@@ -43,16 +43,18 @@ function MapButtons({ branch }) {
 
     const openLink = (url, deepLink) => {
         const tg = window.Telegram?.WebApp;
-        if (deepLink) {
-            // Deep link: to'g'ridan ilovani och, ilova yo'q bo'lsa web ga tush
-            const fallback = () => { if (tg?.openLink) tg.openLink(url); else window.open(url, '_blank'); };
+        if (tg?.openLink) {
+            // Telegram ichida: tashqi brauzer orqali och
+            // Tashqi brauzer universal link ni o'zi ilovaga yo'naltiradi
+            tg.openLink(url);
+        } else if (deepLink) {
+            // Oddiy brauzer: deep link sinab ko'r, bo'lmasa web ga o't
             const hidden = () => { document.removeEventListener('visibilitychange', hidden); clearTimeout(timer); };
             document.addEventListener('visibilitychange', hidden);
-            const timer = setTimeout(fallback, 1800);
+            const timer = setTimeout(() => window.open(url, '_blank'), 1800);
             window.location.href = deepLink;
         } else {
-            if (tg?.openLink) tg.openLink(url);
-            else window.open(url, '_blank');
+            window.open(url, '_blank');
         }
     };
 
