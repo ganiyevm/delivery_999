@@ -35,12 +35,16 @@ export default function Home({ onNavigate, onProduct, onScanner }) {
             {/* Header */}
             <header className="header">
                 <div className="header-logo">
-                    <svg width="38" height="38" viewBox="0 0 38 38" fill="none">
-                        <rect width="38" height="38" rx="11" fill="rgba(255,255,255,0.2)"/>
-                        <rect x="16" y="7" width="6" height="24" rx="3" fill="white"/>
-                        <rect x="7" y="16" width="24" height="6" rx="3" fill="white"/>
+                    <svg width="56" height="36" viewBox="0 0 56 36" fill="none">
+                        <circle cx="10" cy="18" r="10" fill="#3DB54A"/>
+                        <circle cx="28" cy="18" r="10" fill="rgba(255,255,255,0.25)"/>
+                        <circle cx="46" cy="18" r="10" fill="#3DB54A"/>
+                        <circle cx="28" cy="18" r="10" fill="white" fillOpacity="0.15"/>
+                        <text x="10" y="23" textAnchor="middle" fill="white" fontWeight="800" fontSize="13" fontFamily="Nunito,sans-serif">9</text>
+                        <text x="28" y="23" textAnchor="middle" fill="white" fontWeight="800" fontSize="13" fontFamily="Nunito,sans-serif">9</text>
+                        <text x="46" y="23" textAnchor="middle" fill="white" fontWeight="800" fontSize="13" fontFamily="Nunito,sans-serif">9</text>
                     </svg>
-                    <h1>Аптека 999<span>Сеть аптек — Тошкент</span></h1>
+                    <h1>Сеть Аптек<span>999 — Тошкент</span></h1>
                 </div>
                 <div className="header-actions">
                     <button className="header-btn" onClick={onScanner}>📷</button>
