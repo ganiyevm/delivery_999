@@ -32,24 +32,15 @@ export default function Cart({ onNavigate, onPayment }) {
                         { headers: { 'Accept-Language': 'uz,ru' } }
                     );
                     const data = await res.json();
-                    const a = data.address || {};
-                    const road = a.road || a.pedestrian || a.footway || a.path || a.name || '';
-                    const houseNum = a.house_number || '';
-                    const district = a.city_district || a.suburb || a.neighbourhood || '';
-                    const city = a.city || a.town || a.village || a.county || '';
-
-                    let humanAddr = '';
-                    if (road && houseNum) {
-                        humanAddr = [road + ', ' + houseNum, district, city].filter(Boolean).join(', ');
-                    } else if (road) {
-                        // uy raqami yo'q — display_name dan birinchi bo'limlarni ol
-                        const dnParts = (data.display_name || '').split(',').map(s => s.trim()).filter(Boolean);
-                        // display_name: "2/1, Bahodir ko'chasi, Toshkent..."
-                        const dnHouse = dnParts[0]?.match(/^\d/) ? dnParts[0] : '';
-                        humanAddr = [road + (dnHouse ? ', ' + dnHouse : ''), district, city].filter(Boolean).join(', ');
-                    } else {
-                        humanAddr = (data.display_name || '').split(',').slice(0, 4).join(',').trim();
-                    }
+                    // display_name: "2/1, Bahodir ko'chasi, Yunusobod, Toshkent, O'zbekiston"
+                    // Oxirgi 2 qism (viloyat, mamlakat) — keraksiz, qolganini olamiz
+                    const dnParts = (data.display_name || '').split(',').map(s => s.trim()).filter(Boolean);
+                    // Mamlakat va viloyatni chiqarib tashlaymiz
+                    const meaningful = dnParts.filter(p =>
+                        p !== "O'zbekiston" && p !== 'Uzbekistan' && !p.includes('viloyat') && !p.includes('область')
+                    );
+                    // Ko'pi bilan 4 ta qism: uy, ko'cha, tuman, shahar
+                    const humanAddr = meaningful.slice(0, 4).join(', ');
                     // Koordinatalarni ham saqlash — admin map tugmalari aniq pin ochadi
                     setAddress(humanAddr ? `${humanAddr} (${coords})` : coords);
                 } catch {
