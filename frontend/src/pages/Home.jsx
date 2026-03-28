@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { productsAPI } from '../api/index';
+import { productsAPI, branchesAPI } from '../api/index';
 import ProductCard from '../components/ProductCard';
 import DrugImage from '../components/DrugImages';
 import { useAuth } from '../context/AuthContext';
@@ -20,10 +20,14 @@ export default function Home({ onNavigate, onProduct, onScanner }) {
     const { user } = useAuth();
     const { count } = useCart();
     const [popular, setPopular] = useState([]);
+    const [branchCount, setBranchCount] = useState(20);
 
     useEffect(() => {
         productsAPI.getAll({ sort: 'popular', limit: 6 })
             .then(res => setPopular(res.data.products || []))
+            .catch(() => { });
+        branchesAPI.getAll()
+            .then(res => { if (res.data?.length) setBranchCount(res.data.length); })
             .catch(() => { });
     }, []);
 
@@ -63,7 +67,7 @@ export default function Home({ onNavigate, onProduct, onScanner }) {
             <div className="stats-grid fade-up">
                 <div className="stat-card">
                     <div className="icon">🏥</div>
-                    <div className="value">20</div>
+                    <div className="value">{branchCount}</div>
                     <div className="label">Filial</div>
                 </div>
                 <div className="stat-card">

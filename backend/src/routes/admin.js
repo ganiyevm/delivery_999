@@ -265,9 +265,27 @@ router.get('/branches', async (req, res, next) => {
     } catch (error) { next(error); }
 });
 
+// Yangi filial qo'shish (admin yoki super_admin)
+router.post('/branches', async (req, res, next) => {
+    try {
+        if (!req.isSuperAdmin && req.adminRole !== 'admin') {
+            return res.status(403).json({ error: 'Ruxsat yo\'q' });
+        }
+        const { number, name, address, phone, hours, location } = req.body;
+        if (!number || !name) return res.status(400).json({ error: 'Raqam va nomi majburiy' });
+        const exists = await Branch.findOne({ number });
+        if (exists) return res.status(400).json({ error: `№${number} raqamli filial mavjud` });
+        const branch = await Branch.create({ number, name, address, phone, hours, location, isOpen: true });
+        res.status(201).json(branch);
+    } catch (error) { next(error); }
+});
+
 router.put('/branches/:id', async (req, res, next) => {
     try {
-        const branch = await Branch.findByIdAndUpdate(req.params.id, req.body, { new: true });
+        const { location, ...rest } = req.body;
+        const update = { ...rest };
+        if (location) update.location = location;
+        const branch = await Branch.findByIdAndUpdate(req.params.id, update, { new: true });
         if (!branch) return res.status(404).json({ error: 'Topilmadi' });
         res.json(branch);
     } catch (error) { next(error); }
@@ -280,6 +298,17 @@ router.patch('/branches/:id/toggle', async (req, res, next) => {
         branch.isOpen = !branch.isOpen;
         await branch.save();
         res.json({ isOpen: branch.isOpen });
+    } catch (error) { next(error); }
+});
+
+// Filialni o'chirish (admin yoki super_admin)
+router.delete('/branches/:id', async (req, res, next) => {
+    try {
+        if (!req.isSuperAdmin && req.adminRole !== 'admin') {
+            return res.status(403).json({ error: 'Ruxsat yo\'q' });
+        }
+        await Branch.findByIdAndDelete(req.params.id);
+        res.json({ message: 'O\'chirildi' });
     } catch (error) { next(error); }
 });
 
