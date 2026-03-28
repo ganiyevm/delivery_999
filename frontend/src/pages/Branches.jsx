@@ -1,103 +1,155 @@
 import React, { useState, useEffect } from 'react';
 import { branchesAPI } from '../api/index';
 
-function openUrl(url) {
+// ─── Platform aniqlash ───
+function getPlatform() {
+    const ua = navigator.userAgent || '';
+    if (/android/i.test(ua)) return 'android';
+    if (/iphone|ipad|ipod/i.test(ua)) return 'ios';
+    return 'other';
+}
+
+// ─── Xarita ilovasini ochish (native deep link + web fallback) ───
+function openMapApp(nativeUrl, webUrl) {
     const tg = window.Telegram?.WebApp;
-    if (tg?.openLink) tg.openLink(url);
+    const platform = getPlatform();
+
+    // Desktop — faqat web
+    if (platform === 'other') {
+        if (tg?.openLink) tg.openLink(webUrl, { try_instant_view: false });
+        else window.open(webUrl, '_blank');
+        return;
+    }
+
+    // Mobile — native link tashqi brauzerda ochiladi
+    const url = nativeUrl || webUrl;
+    if (tg?.openLink) tg.openLink(url, { try_instant_view: false });
     else window.open(url, '_blank');
 }
 
 // ─── SVG Logolar ───
 const YandexNavIcon = () => (
     <svg width="44" height="44" viewBox="0 0 44 44" fill="none">
-        <rect width="44" height="44" rx="11" fill="#FC3F1D"/>
-        <path d="M22 9C15.373 9 10 14.373 10 21c0 4.27 2.165 8.03 5.45 10.25L22 35l6.55-3.75C31.835 29.03 34 25.27 34 21c0-6.627-5.373-12-12-12z" fill="white" opacity="0.15"/>
-        <path d="M26.5 14h-2.8l-4.2 8.4h2.4l.9-1.8h5l.9 1.8h2.5L26.5 14zm-2.8 4.8 1.4-2.8 1.4 2.8h-2.8z" fill="white"/>
-        <path d="M17.5 22.5l-1.8 7.5h2.3l.45-1.9h2.55l.45 1.9h2.3l-1.8-7.5h-4.5zm.95 4 .75-3.1.75 3.1h-1.5z" fill="white"/>
+        <rect width="44" height="44" rx="11" fill="#FC3F1D" />
+        <path d="M22 9C15.373 9 10 14.373 10 21c0 4.27 2.165 8.03 5.45 10.25L22 35l6.55-3.75C31.835 29.03 34 25.27 34 21c0-6.627-5.373-12-12-12z" fill="white" opacity="0.15" />
+        <path d="M26.5 14h-2.8l-4.2 8.4h2.4l.9-1.8h5l.9 1.8h2.5L26.5 14zm-2.8 4.8 1.4-2.8 1.4 2.8h-2.8z" fill="white" />
+        <path d="M17.5 22.5l-1.8 7.5h2.3l.45-1.9h2.55l.45 1.9h2.3l-1.8-7.5h-4.5zm.95 4 .75-3.1.75 3.1h-1.5z" fill="white" />
     </svg>
 );
 
 const YandexGoIcon = () => (
     <svg width="44" height="44" viewBox="0 0 44 44" fill="none">
-        <rect width="44" height="44" rx="11" fill="#FFD600"/>
-        <rect x="9" y="20" width="26" height="13" rx="4" fill="#1A1A1A"/>
-        <rect x="13" y="17" width="18" height="7" rx="3" fill="#1A1A1A"/>
-        <circle cx="15" cy="33" r="3" fill="#FFD600" stroke="#1A1A1A" strokeWidth="1.5"/>
-        <circle cx="29" cy="33" r="3" fill="#FFD600" stroke="#1A1A1A" strokeWidth="1.5"/>
-        <rect x="20" y="21" width="1.5" height="5" rx="0.75" fill="#FFD600"/>
-        <rect x="23" y="21" width="1.5" height="5" rx="0.75" fill="#FFD600"/>
-        <path d="M26 14l2.5 3H24l2-3z" fill="#1A1A1A"/>
+        <rect width="44" height="44" rx="11" fill="#FFD600" />
+        <rect x="9" y="20" width="26" height="13" rx="4" fill="#1A1A1A" />
+        <rect x="13" y="17" width="18" height="7" rx="3" fill="#1A1A1A" />
+        <circle cx="15" cy="33" r="3" fill="#FFD600" stroke="#1A1A1A" strokeWidth="1.5" />
+        <circle cx="29" cy="33" r="3" fill="#FFD600" stroke="#1A1A1A" strokeWidth="1.5" />
+        <rect x="20" y="21" width="1.5" height="5" rx="0.75" fill="#FFD600" />
+        <rect x="23" y="21" width="1.5" height="5" rx="0.75" fill="#FFD600" />
+        <path d="M26 14l2.5 3H24l2-3z" fill="#1A1A1A" />
     </svg>
 );
 
 const GoogleMapsIcon = () => (
     <svg width="44" height="44" viewBox="0 0 44 44" fill="none">
-        <rect width="44" height="44" rx="11" fill="white" stroke="#E5E5E5" strokeWidth="1"/>
-        <path d="M22 8c-5.523 0-10 4.477-10 10 0 7.5 10 18 10 18s10-10.5 10-18c0-5.523-4.477-10-10-10z" fill="#EA4335"/>
-        <path d="M22 8c-5.523 0-10 4.477-10 10 0 2.09.64 4.03 1.74 5.64L22 8z" fill="#1A73E8"/>
-        <path d="M32 18c0-2.09-.64-4.03-1.74-5.64L22 18h10z" fill="#FBBC04"/>
-        <path d="M22 8l-8.26 10c.97 1.44 2.31 2.62 3.87 3.38L22 8z" fill="#34A853"/>
-        <circle cx="22" cy="18" r="4" fill="white"/>
+        <rect width="44" height="44" rx="11" fill="white" stroke="#E5E5E5" strokeWidth="1" />
+        <path d="M22 8c-5.523 0-10 4.477-10 10 0 7.5 10 18 10 18s10-10.5 10-18c0-5.523-4.477-10-10-10z" fill="#EA4335" />
+        <path d="M22 8c-5.523 0-10 4.477-10 10 0 2.09.64 4.03 1.74 5.64L22 8z" fill="#1A73E8" />
+        <path d="M32 18c0-2.09-.64-4.03-1.74-5.64L22 18h10z" fill="#FBBC04" />
+        <path d="M22 8l-8.26 10c.97 1.44 2.31 2.62 3.87 3.38L22 8z" fill="#34A853" />
+        <circle cx="22" cy="18" r="4" fill="white" />
     </svg>
 );
 
 const TwoGisIcon = () => (
     <svg width="44" height="44" viewBox="0 0 44 44" fill="none">
-        <rect width="44" height="44" rx="11" fill="#00AF57"/>
+        <rect width="44" height="44" rx="11" fill="#00AF57" />
         <text x="22" y="28" textAnchor="middle" fontFamily="Arial Black, sans-serif" fontSize="13" fontWeight="900" fill="white">2GIS</text>
     </svg>
 );
 
 const AppleMapsIcon = () => (
     <svg width="44" height="44" viewBox="0 0 44 44" fill="none">
-        <rect width="44" height="44" rx="11" fill="url(#appleGrad)"/>
+        <rect width="44" height="44" rx="11" fill="url(#appleGrad)" />
         <defs>
             <linearGradient id="appleGrad" x1="0" y1="0" x2="44" y2="44">
-                <stop offset="0%" stopColor="#3EC6F5"/>
-                <stop offset="100%" stopColor="#1A6CF5"/>
+                <stop offset="0%" stopColor="#3EC6F5" />
+                <stop offset="100%" stopColor="#1A6CF5" />
             </linearGradient>
         </defs>
-        <path d="M22 10c-5.523 0-10 4.477-10 10 0 5.523 4.477 10 10 10s10-4.477 10-10c0-5.523-4.477-10-10-10z" fill="white" opacity="0.2"/>
-        <path d="M22 14c-3.314 0-6 2.686-6 6 0 4.5 6 10 6 10s6-5.5 6-10c0-3.314-2.686-6-6-6z" fill="white"/>
-        <circle cx="22" cy="20" r="2.5" fill="#3EC6F5"/>
-        <path d="M15 28l13-8" stroke="white" strokeWidth="1.5" strokeLinecap="round" opacity="0.6"/>
+        <path d="M22 10c-5.523 0-10 4.477-10 10 0 5.523 4.477 10 10 10s10-4.477 10-10c0-5.523-4.477-10-10-10z" fill="white" opacity="0.2" />
+        <path d="M22 14c-3.314 0-6 2.686-6 6 0 4.5 6 10 6 10s6-5.5 6-10c0-3.314-2.686-6-6-6z" fill="white" />
+        <circle cx="22" cy="20" r="2.5" fill="#3EC6F5" />
+        <path d="M15 28l13-8" stroke="white" strokeWidth="1.5" strokeLinecap="round" opacity="0.6" />
     </svg>
 );
 
-const NAV_OPTIONS = (lat, lng, name, addr) => [
-    {
-        label: 'Yandex Navigator',
-        sub: 'Haydovchi navigatsiyasi',
-        Icon: YandexNavIcon,
-        url: lat ? `https://yandex.uz/maps/?rtext=~${lat},${lng}&rtt=auto` : `https://yandex.uz/maps/?text=${addr}&rtt=auto`,
-    },
-    {
-        label: 'Yandex Go',
-        sub: 'Taksi — narx va vaqt',
-        Icon: YandexGoIcon,
-        url: lat ? `https://go.yandex/route?end-lat=${lat}&end-lon=${lng}&end-name=${name}` : 'https://go.yandex',
-    },
-    {
-        label: 'Google Maps',
-        sub: "Yo'nalish va navigatsiya",
-        Icon: GoogleMapsIcon,
-        url: lat
-            ? `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}&travelmode=driving`
-            : `https://www.google.com/maps/search/?api=1&query=${addr}`,
-    },
-    {
-        label: '2GIS',
-        sub: "O'zbekiston xaritasi",
-        Icon: TwoGisIcon,
-        url: lat ? `https://2gis.uz/tashkent?m=${lng},${lat}/17` : `https://2gis.uz/tashkent/search/${addr}`,
-    },
-    {
-        label: 'Apple Maps',
-        sub: 'iPhone va iPad uchun',
-        Icon: AppleMapsIcon,
-        url: lat ? `https://maps.apple.com/?daddr=${lat},${lng}&dirflg=d` : `https://maps.apple.com/?q=${addr}`,
-    },
-];
+// ─── Xarita variantlari (native + web) ───
+const NAV_OPTIONS = (lat, lng, name, addr) => {
+    const platform = getPlatform();
+
+    return [
+        {
+            label: 'Yandex Navigator',
+            sub: 'Haydovchi navigatsiyasi',
+            Icon: YandexNavIcon,
+            nativeUrl: lat
+                ? `yandexnavi://build_route_on_map?lat_to=${lat}&lon_to=${lng}`
+                : null,
+            webUrl: lat
+                ? `https://yandex.uz/maps/?rtext=~${lat},${lng}&rtt=auto`
+                : `https://yandex.uz/maps/?text=${addr}&rtt=auto`,
+        },
+        {
+            label: 'Yandex Go',
+            sub: 'Taksi — narx va vaqt',
+            Icon: YandexGoIcon,
+            nativeUrl: lat
+                ? `yandexmaps://maps.yandex.ru/?rtext=~${lat},${lng}&rtt=taxi`
+                : null,
+            webUrl: lat
+                ? `https://3.redirect.appmetrica.yandex.com/route?end-lat=${lat}&end-lon=${lng}&appmetrica_tracking_id=1178268795219780156`
+                : 'https://go.yandex',
+        },
+        {
+            label: 'Google Maps',
+            sub: "Yo'nalish va navigatsiya",
+            Icon: GoogleMapsIcon,
+            nativeUrl: lat
+                ? (platform === 'ios'
+                    ? `comgooglemaps://?daddr=${lat},${lng}&directionsmode=driving`
+                    : platform === 'android'
+                        ? `google.navigation:q=${lat},${lng}&mode=d`
+                        : null)
+                : null,
+            webUrl: lat
+                ? `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}&travelmode=driving`
+                : `https://www.google.com/maps/search/?api=1&query=${addr}`,
+        },
+        {
+            label: '2GIS',
+            sub: "O'zbekiston xaritasi",
+            Icon: TwoGisIcon,
+            nativeUrl: lat
+                ? `dgis://2gis.ru/routeSearch/rsType/car/to/${lng},${lat}`
+                : null,
+            webUrl: lat
+                ? `https://2gis.uz/tashkent/directions/points/%7C${lng}%2C${lat}?m=${lng}%2C${lat}%2F17`
+                : `https://2gis.uz/tashkent/search/${addr}`,
+        },
+        {
+            label: 'Apple Maps',
+            sub: 'iPhone va iPad uchun',
+            Icon: AppleMapsIcon,
+            nativeUrl: lat
+                ? `maps://?daddr=${lat},${lng}&dirflg=d`
+                : null,
+            webUrl: lat
+                ? `https://maps.apple.com/?daddr=${lat},${lng}&dirflg=d`
+                : `https://maps.apple.com/?q=${addr}`,
+        },
+    ];
+};
 
 function NavSheet({ branch, onClose }) {
     const lat = branch.location?.lat && branch.location.lat !== 0 ? branch.location.lat : null;
@@ -125,10 +177,10 @@ function NavSheet({ branch, onClose }) {
                 </div>
 
                 {/* Options */}
-                {options.map(({ label, sub, Icon, url }) => (
+                {options.map(({ label, sub, Icon, nativeUrl, webUrl }) => (
                     <button
                         key={label}
-                        onClick={() => { openUrl(url); onClose(); }}
+                        onClick={() => { openMapApp(nativeUrl, webUrl); onClose(); }}
                         style={{
                             display: 'flex', alignItems: 'center', gap: 14,
                             width: '100%', padding: '11px 20px',
@@ -141,7 +193,7 @@ function NavSheet({ branch, onClose }) {
                             <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginTop: 1 }}>{sub}</div>
                         </span>
                         <svg width="8" height="14" viewBox="0 0 8 14" fill="none">
-                            <path d="M1 1l6 6-6 6" stroke="var(--border)" strokeWidth="2" strokeLinecap="round"/>
+                            <path d="M1 1l6 6-6 6" stroke="var(--border)" strokeWidth="2" strokeLinecap="round" />
                         </svg>
                     </button>
                 ))}
@@ -212,7 +264,7 @@ export default function Branches() {
                                         }}
                                     >
                                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
-                                            <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z" fill="white"/>
+                                            <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z" fill="white" />
                                         </svg>
                                         Yo'nalish
                                     </button>
