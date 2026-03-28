@@ -4,6 +4,8 @@ import api from '../../api/axios';
 export default function ImportPage() {
     const [result, setResult] = useState(null);
     const [loading, setLoading] = useState(false);
+    const [uploadPct, setUploadPct] = useState(0);
+    const [phase, setPhase] = useState(''); // 'uploading' | 'processing'
     const [logs, setLogs] = useState([]);
     const fileRef = useRef();
 
@@ -15,17 +17,29 @@ export default function ImportPage() {
         if (!file) return;
         setLoading(true);
         setResult(null);
+        setUploadPct(0);
+        setPhase('uploading');
         try {
             const formData = new FormData();
             formData.append('file', file);
             const { data } = await api.post('/import/excel', formData, {
                 headers: { 'Content-Type': 'multipart/form-data' },
+                timeout: 600000, // 10 daqiqa — katta fayllar uchun
+                onUploadProgress: (e) => {
+                    const pct = Math.round((e.loaded * 100) / (e.total || 1));
+                    setUploadPct(pct);
+                    if (pct >= 100) setPhase('processing');
+                },
             });
             setResult(data);
         } catch (err) {
-            setResult({ error: err.response?.data?.error || 'Import xatosi' });
+            const msg = err.code === 'ECONNABORTED'
+                ? 'Timeout: server javob bermadi (fayl juda katta yoki server band)'
+                : (err.response?.data?.error || err.message || 'Import xatosi');
+            setResult({ error: msg });
         } finally {
             setLoading(false);
+            setPhase('');
         }
     };
 
@@ -33,9 +47,10 @@ export default function ImportPage() {
         <div>
             <div className="topbar"><h2>📤 Import</h2></div>
 
-            <div className="drop-zone" onClick={() => fileRef.current?.click()}
+            <div className="drop-zone" onClick={() => !loading && fileRef.current?.click()}
                 onDragOver={e => e.preventDefault()}
-                onDrop={e => { e.preventDefault(); handleImport(e.dataTransfer.files[0]); }}>
+                onDrop={e => { e.preventDefault(); handleImport(e.dataTransfer.files[0]); }}
+                style={{ cursor: loading ? 'default' : 'pointer', opacity: loading ? 0.6 : 1 }}>
                 <div className="icon">📁</div>
                 <h3>Excel faylni shu yerga torting</h3>
                 <p>yoki bosib tanlang (.xlsx)</p>
@@ -44,9 +59,28 @@ export default function ImportPage() {
             </div>
 
             {loading && (
-                <div style={{ textAlign: 'center', padding: 40 }}>
-                    <div className="progress-bar"><div className="progress-fill" style={{ width: '60%', animation: 'shimmer 1.5s infinite' }} /></div>
-                    <p>⏳ Import jarayonda...</p>
+                <div style={{ padding: '24px 0' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6, fontSize: 13, fontWeight: 600 }}>
+                        <span>{phase === 'uploading' ? '⬆️ Fayl yuklanmoqda...' : '⚙️ Server qayta ishlayapti...'}</span>
+                        <span style={{ color: 'var(--primary)' }}>
+                            {phase === 'uploading' ? `${uploadPct}%` : ''}
+                        </span>
+                    </div>
+                    <div style={{ background: 'var(--border)', borderRadius: 8, height: 10, overflow: 'hidden' }}>
+                        <div style={{
+                            height: '100%',
+                            borderRadius: 8,
+                            background: 'var(--primary)',
+                            transition: 'width 0.3s ease',
+                            width: phase === 'uploading' ? `${uploadPct}%` : '100%',
+                            animation: phase === 'processing' ? 'shimmer 1.5s infinite' : 'none',
+                        }} />
+                    </div>
+                    {phase === 'processing' && (
+                        <p style={{ fontSize: 12, color: 'var(--text-secondary)', marginTop: 8 }}>
+                            57 000+ qator ishlanmoqda, 1-3 daqiqa kutiladi...
+                        </p>
+                    )}
                 </div>
             )}
 

@@ -20,7 +20,11 @@ const upload = multer({
 });
 
 // Excel import
-router.post('/excel', adminAuth, upload.single('file'), async (req, res, next) => {
+router.post('/excel', adminAuth, upload.single('file'), (req, res, next) => {
+    req.setTimeout(600000); // 10 daqiqa — 57000+ qator uchun
+    res.setTimeout(600000);
+    next();
+}, async (req, res, next) => {
     try {
         if (!req.file) {
             return res.status(400).json({ error: 'Fayl yuklanmadi' });
