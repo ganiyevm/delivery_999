@@ -8,101 +8,53 @@ function openMapApp(url) {
     else window.open(url, '_blank');
 }
 
-// ─── SVG Logolar ───
-const YandexNavIcon = () => (
-    <svg width="44" height="44" viewBox="0 0 44 44" fill="none">
-        <rect width="44" height="44" rx="11" fill="#FC3F1D" />
-        <path d="M22 9C15.373 9 10 14.373 10 21c0 4.27 2.165 8.03 5.45 10.25L22 35l6.55-3.75C31.835 29.03 34 25.27 34 21c0-6.627-5.373-12-12-12z" fill="white" opacity="0.15" />
-        <path d="M26.5 14h-2.8l-4.2 8.4h2.4l.9-1.8h5l.9 1.8h2.5L26.5 14zm-2.8 4.8 1.4-2.8 1.4 2.8h-2.8z" fill="white" />
-        <path d="M17.5 22.5l-1.8 7.5h2.3l.45-1.9h2.55l.45 1.9h2.3l-1.8-7.5h-4.5zm.95 4 .75-3.1.75 3.1h-1.5z" fill="white" />
-    </svg>
+// ─── Real logolar (Wikimedia CDN — CORS yo'q) ───
+const AppIcon = ({ src, alt }) => (
+    <img
+        src={src} alt={alt}
+        width={44} height={44}
+        style={{ borderRadius: 11, objectFit: 'cover', flexShrink: 0 }}
+        onError={e => { e.target.style.background = '#eee'; }}
+    />
 );
 
-const YandexGoIcon = () => (
-    <svg width="44" height="44" viewBox="0 0 44 44" fill="none">
-        <rect width="44" height="44" rx="11" fill="#FFD600" />
-        <rect x="9" y="20" width="26" height="13" rx="4" fill="#1A1A1A" />
-        <rect x="13" y="17" width="18" height="7" rx="3" fill="#1A1A1A" />
-        <circle cx="15" cy="33" r="3" fill="#FFD600" stroke="#1A1A1A" strokeWidth="1.5" />
-        <circle cx="29" cy="33" r="3" fill="#FFD600" stroke="#1A1A1A" strokeWidth="1.5" />
-        <rect x="20" y="21" width="1.5" height="5" rx="0.75" fill="#FFD600" />
-        <rect x="23" y="21" width="1.5" height="5" rx="0.75" fill="#FFD600" />
-        <path d="M26 14l2.5 3H24l2-3z" fill="#1A1A1A" />
-    </svg>
-);
+const ICONS = {
+    yandexNav:   'https://upload.wikimedia.org/wikipedia/commons/thumb/a/a3/YandexNavigatorLogo.svg/200px-YandexNavigatorLogo.svg.png',
+    yandexMaps:  'https://upload.wikimedia.org/wikipedia/commons/thumb/7/72/Yandex_Maps_icon.svg/200px-Yandex_Maps_icon.svg.png',
+    googleMaps:  'https://upload.wikimedia.org/wikipedia/commons/thumb/a/aa/Google_Maps_icon_%282020%29.svg/200px-Google_Maps_icon_%282020%29.svg.png',
+    appleMaps:   'https://upload.wikimedia.org/wikipedia/commons/2/21/Apple_Maps_iOS_26_icon.png',
+};
 
-const GoogleMapsIcon = () => (
-    <svg width="44" height="44" viewBox="0 0 44 44" fill="none">
-        <rect width="44" height="44" rx="11" fill="white" stroke="#E5E5E5" strokeWidth="1" />
-        <path d="M22 8c-5.523 0-10 4.477-10 10 0 7.5 10 18 10 18s10-10.5 10-18c0-5.523-4.477-10-10-10z" fill="#EA4335" />
-        <path d="M22 8c-5.523 0-10 4.477-10 10 0 2.09.64 4.03 1.74 5.64L22 8z" fill="#1A73E8" />
-        <path d="M32 18c0-2.09-.64-4.03-1.74-5.64L22 18h10z" fill="#FBBC04" />
-        <path d="M22 8l-8.26 10c.97 1.44 2.31 2.62 3.87 3.38L22 8z" fill="#34A853" />
-        <circle cx="22" cy="18" r="4" fill="white" />
-    </svg>
-);
-
-const TwoGisIcon = () => (
-    <svg width="44" height="44" viewBox="0 0 44 44" fill="none">
-        <rect width="44" height="44" rx="11" fill="#00AF57" />
-        <text x="22" y="28" textAnchor="middle" fontFamily="Arial Black, sans-serif" fontSize="13" fontWeight="900" fill="white">2GIS</text>
-    </svg>
-);
-
-const AppleMapsIcon = () => (
-    <svg width="44" height="44" viewBox="0 0 44 44" fill="none">
-        <rect width="44" height="44" rx="11" fill="url(#appleGrad)" />
-        <defs>
-            <linearGradient id="appleGrad" x1="0" y1="0" x2="44" y2="44">
-                <stop offset="0%" stopColor="#3EC6F5" />
-                <stop offset="100%" stopColor="#1A6CF5" />
-            </linearGradient>
-        </defs>
-        <path d="M22 10c-5.523 0-10 4.477-10 10 0 5.523 4.477 10 10 10s10-4.477 10-10c0-5.523-4.477-10-10-10z" fill="white" opacity="0.2" />
-        <path d="M22 14c-3.314 0-6 2.686-6 6 0 4.5 6 10 6 10s6-5.5 6-10c0-3.314-2.686-6-6-6z" fill="white" />
-        <circle cx="22" cy="20" r="2.5" fill="#3EC6F5" />
-        <path d="M15 28l13-8" stroke="white" strokeWidth="1.5" strokeLinecap="round" opacity="0.6" />
-    </svg>
-);
-
-// ─── Xarita variantlari — faqat ishlaydigan HTTPS URL lar ───
-const NAV_OPTIONS = (lat, lng, name, addr) => [
+// ─── Xarita variantlari ───
+const NAV_OPTIONS = (lat, lng, addr) => [
     {
         label: 'Yandex Navigator',
         sub: 'Haydovchi navigatsiyasi',
-        Icon: YandexNavIcon,
+        icon: <AppIcon src={ICONS.yandexNav} alt="Yandex Navigator" />,
         url: lat
             ? `https://yandex.uz/maps/?rtext=~${lat},${lng}&rtt=auto`
             : `https://yandex.uz/maps/?text=${addr}&rtt=auto`,
     },
     {
-        label: 'Yandex Go',
-        sub: 'Taksi — narx va vaqt',
-        Icon: YandexGoIcon,
+        label: 'Yandex Maps',
+        sub: 'Yandex xaritasi',
+        icon: <AppIcon src={ICONS.yandexMaps} alt="Yandex Maps" />,
         url: lat
-            ? `https://go.yandex/route?end-lat=${lat}&end-lon=${lng}&end-name=${name}`
-            : 'https://go.yandex',
+            ? `https://yandex.uz/maps/?pt=${lng},${lat}&z=17`
+            : `https://yandex.uz/maps/?text=${addr}`,
     },
     {
         label: 'Google Maps',
         sub: "Yo'nalish va navigatsiya",
-        Icon: GoogleMapsIcon,
+        icon: <AppIcon src={ICONS.googleMaps} alt="Google Maps" />,
         url: lat
             ? `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}&travelmode=driving`
             : `https://www.google.com/maps/search/?api=1&query=${addr}`,
     },
     {
-        label: '2GIS',
-        sub: "O'zbekiston xaritasi",
-        Icon: TwoGisIcon,
-        url: lat
-            ? `https://2gis.uz/tashkent?m=${lng},${lat}/17`
-            : `https://2gis.uz/tashkent/search/${addr}`,
-    },
-    {
         label: 'Apple Maps',
         sub: 'iPhone va iPad uchun',
-        Icon: AppleMapsIcon,
+        icon: <AppIcon src={ICONS.appleMaps} alt="Apple Maps" />,
         url: lat
             ? `https://maps.apple.com/?daddr=${lat},${lng}&dirflg=d`
             : `https://maps.apple.com/?q=${addr}`,
@@ -112,9 +64,8 @@ const NAV_OPTIONS = (lat, lng, name, addr) => [
 function NavSheet({ branch, onClose }) {
     const lat = branch.location?.lat && branch.location.lat !== 0 ? branch.location.lat : null;
     const lng = branch.location?.lng && branch.location.lng !== 0 ? branch.location.lng : null;
-    const name = encodeURIComponent(branch.name || 'Apteka 999');
     const addr = encodeURIComponent((branch.address || '') + ', Toshkent');
-    const options = NAV_OPTIONS(lat, lng, name, addr);
+    const options = NAV_OPTIONS(lat, lng, addr);
 
     return (
         <div
@@ -135,7 +86,7 @@ function NavSheet({ branch, onClose }) {
                 </div>
 
                 {/* Options */}
-                {options.map(({ label, sub, Icon, url }) => (
+                {options.map(({ label, sub, icon, url }) => (
                     <button
                         key={label}
                         onClick={() => { openMapApp(url); onClose(); }}
@@ -145,7 +96,7 @@ function NavSheet({ branch, onClose }) {
                             background: 'none', border: 'none', cursor: 'pointer',
                         }}
                     >
-                        <Icon />
+                        {icon}
                         <span style={{ flex: 1, textAlign: 'left' }}>
                             <div style={{ fontWeight: 600, fontSize: 14, color: 'var(--text-primary)' }}>{label}</div>
                             <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginTop: 1 }}>{sub}</div>
