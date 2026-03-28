@@ -40,7 +40,7 @@ export default function Home({ onNavigate, onProduct, onScanner }) {
             <header className="header">
                 <div className="header-logo">
                     <img src="/logo999.jpg" alt="999" style={{ height: 40, width: 40, borderRadius: 10, objectFit: 'cover' }} />
-                    <h1>Сеть Аптек 999<span>Тошкент бўйлаб 20 филиал</span></h1>
+                    <h1>Сеть Аптек 999<span>Тошкент бўйлаб {branchCount} филиал</span></h1>
                 </div>
                 <div className="header-actions">
                     <button className="header-btn" onClick={onScanner}>📷</button>
