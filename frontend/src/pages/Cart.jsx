@@ -13,9 +13,28 @@ export default function Cart({ onNavigate, onPayment }) {
     const [phone, setPhone] = useState(user?.phone || '');
     const [name, setName] = useState(`${user?.firstName || ''} ${user?.lastName || ''}`.trim());
     const [address, setAddress] = useState('');
+    const [comment, setComment] = useState('');
+    const [geoLoading, setGeoLoading] = useState(false);
     const [branches, setBranches] = useState([]);
     const [selectedBranch, setSelectedBranch] = useState('');
     const [submitting, setSubmitting] = useState(false);
+
+    const getLocation = () => {
+        if (!navigator.geolocation) return alert('Qurilmangiz geolokatsiyani qo\'llab-quvvatlamaydi');
+        setGeoLoading(true);
+        navigator.geolocation.getCurrentPosition(
+            (pos) => {
+                const { latitude, longitude } = pos.coords;
+                setAddress(`📍 ${latitude.toFixed(6)}, ${longitude.toFixed(6)}`);
+                setGeoLoading(false);
+            },
+            () => {
+                setGeoLoading(false);
+                alert('Joylashuvni aniqlash imkonsiz. Ruxsat bering yoki qo\'lda kiriting.');
+            },
+            { enableHighAccuracy: true, timeout: 10000 }
+        );
+    };
 
     useEffect(() => {
         branchesAPI.getAll().then(res => {
@@ -64,6 +83,7 @@ export default function Cart({ onNavigate, onPayment }) {
                 branchId: selectedBranch,
                 paymentMethod,
                 useBonusPoints,
+                notes: comment,
             });
 
             // Savatni bu yerda tozalamay, to'lov tasdiqlangandan keyin Payment.jsx da tozalanadi
@@ -146,10 +166,32 @@ export default function Cart({ onNavigate, onPayment }) {
                 {deliveryType === 'delivery' && (
                     <div className="form-group">
                         <label className="form-label">Manzil</label>
-                        <textarea className="form-textarea" value={address} onChange={e => setAddress(e.target.value)}
-                            placeholder="Tuman, ko'cha, uy raqami..." />
+                        <div style={{ display: 'flex', gap: 8, alignItems: 'flex-start' }}>
+                            <textarea className="form-textarea" style={{ flex: 1 }} value={address}
+                                onChange={e => setAddress(e.target.value)}
+                                placeholder="Tuman, ko'cha, uy raqami..." />
+                            <button type="button" onClick={getLocation} disabled={geoLoading}
+                                style={{
+                                    flexShrink: 0, width: 44, height: 44, borderRadius: 12,
+                                    background: 'var(--green)', color: 'white', border: 'none',
+                                    fontSize: 20, cursor: 'pointer', display: 'flex',
+                                    alignItems: 'center', justifyContent: 'center',
+                                }}>
+                                {geoLoading ? '⏳' : '📍'}
+                            </button>
+                        </div>
+                        <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginTop: 4 }}>
+                            📍 tugmasi orqali joylashuvingizni avtomatik aniqlang
+                        </div>
                     </div>
                 )}
+
+                <div className="form-group">
+                    <label className="form-label">Izoh (ixtiyoriy)</label>
+                    <textarea className="form-textarea" value={comment}
+                        onChange={e => setComment(e.target.value)}
+                        placeholder="Kuryer uchun eslatma, qavat, podezd..." />
+                </div>
             </div>
 
             <div className="section">
