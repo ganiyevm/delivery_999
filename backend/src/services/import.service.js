@@ -16,8 +16,17 @@ class ImportService {
         const sheet = workbook.Sheets[sheetName];
         const rows = XLSX.utils.sheet_to_json(sheet, { header: 1 });
 
-        // 1-qator header, o'tkazib yuborish
-        const dataRows = rows.slice(1).filter(r => r && r.length >= 2);
+        // Header qatorlarni o'tkazish — birinchi "Аптека" so'zi bor qatorni topish
+        let startIdx = 0;
+        for (let i = 0; i < Math.min(rows.length, 10); i++) {
+            const firstCell = String(rows[i]?.[0] || '').trim();
+            if (/аптека\s*№?\s*\d+/i.test(firstCell)) {
+                startIdx = i;
+                break;
+            }
+        }
+
+        const dataRows = rows.slice(startIdx).filter(r => r && r.length >= 2);
 
         const errors = [];
         let successCount = 0;
@@ -32,6 +41,15 @@ class ImportService {
             branchCache[`№${String(b.number).padStart(3, '0')}`] = b;
             branchCache[`${b.number}`] = b;
         });
+
+        // Barcha mahsulotlarni cache qilish (N+1 muammosini hal qilish)
+        const allProducts = await Product.find().lean();
+        const productCache = {};
+        allProducts.forEach(p => {
+            productCache[p.name.toLowerCase()] = p;
+        });
+
+        const stockBulkOps = [];
 
         for (let i = 0; i < dataRows.length; i++) {
             const row = dataRows[i];
@@ -54,9 +72,9 @@ class ImportService {
                 if (!branch) {
                     // Filial avtomatik yaratish
                     let branchNumber = null;
-                    const lower = branchName.toLowerCase().trim();
+                    let isPharmacy = true;
 
-                    // "Аптека №001" pattern
+                    // "Аптека №001" yoki "Аптека №001 (Максим Горький)" pattern
                     const aptMatch = branchName.match(/[аА]птека\s*№?\s*(\d+)/i);
                     if (aptMatch) {
                         branchNumber = parseInt(aptMatch[1]);
@@ -65,15 +83,23 @@ class ImportService {
                     else if (/склад/i.test(branchName)) {
                         const skladNum = branchName.match(/(\d+)/);
                         branchNumber = 1000 + (skladNum ? parseInt(skladNum[1]) : 0);
+                        isPharmacy = false;
                     }
                     // "ОФИС", "АПТЕКА ОФИС" — ofis
                     else if (/офис/i.test(branchName)) {
                         branchNumber = 0;
+                        isPharmacy = false;
+                    }
+                    // "Филиал" — yolg'iz so'z, skip
+                    else if (/^филиал$/i.test(branchName.trim())) {
+                        errors.push({ row: rowNum, message: `"${branchName}" — umumiy nom, o'tkazildi` });
+                        continue;
                     }
                     // Boshqa — raqam izlash
                     else {
                         const numMatch = branchName.match(/(\d+)/);
                         branchNumber = numMatch ? parseInt(numMatch[1]) + 2000 : null;
+                        isPharmacy = false;
                     }
 
                     if (branchNumber === null) {
@@ -87,6 +113,7 @@ class ImportService {
                         existingBranch = await Branch.create({
                             number: branchNumber,
                             name: branchName,
+                            isActive: isPharmacy,
                         });
                     }
 
@@ -104,10 +131,9 @@ class ImportService {
                     continue;
                 }
 
-                // Product upsert
-                let product = await Product.findOne({
-                    name: { $regex: new RegExp(`^${productName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i') },
-                });
+                // Product — avval cache dan qidirish
+                const nameLower = productName.toLowerCase();
+                let product = productCache[nameLower];
 
                 if (!product) {
                     product = new Product({
@@ -116,22 +142,31 @@ class ImportService {
                         category: autoCategory(productName),
                     });
                     await product.save();
+                    productCache[nameLower] = product;
                 } else if (manufacturer && !product.manufacturer) {
-                    product.manufacturer = manufacturer;
-                    await product.save();
+                    await Product.updateOne({ _id: product._id }, { manufacturer });
+                    product = { ...product, manufacturer };
+                    productCache[nameLower] = product;
                 }
 
-                // Stock upsert
-                await Stock.findOneAndUpdate(
-                    { product: product._id, branch: branch._id },
-                    { price, qty, updatedAt: new Date() },
-                    { upsert: true, new: true }
-                );
+                // Stock bulk op yig'ish
+                stockBulkOps.push({
+                    updateOne: {
+                        filter: { product: product._id, branch: branch._id },
+                        update: { $set: { price, qty, updatedAt: new Date() } },
+                        upsert: true,
+                    },
+                });
 
                 successCount++;
             } catch (err) {
                 errors.push({ row: rowNum, message: err.message });
             }
+        }
+
+        // Stock larni bir martada yozish
+        if (stockBulkOps.length > 0) {
+            await Stock.bulkWrite(stockBulkOps, { ordered: false });
         }
 
         // Import log yozish
@@ -159,20 +194,37 @@ class ImportService {
         if (!name) return null;
         const lower = name.toLowerCase().trim();
 
+        // Umumiy/generic nomlar — skip (ular hech qanday filialga mos kelmaydi)
+        if (/^(филиал|аптека|склад|офис)$/i.test(lower)) return null;
+
         // To'g'ridan-to'g'ri
         if (cache[lower]) return cache[lower];
 
-        // Raqam bo'yicha
+        // Raqam bo'yicha — "Аптека №001 (Максим Горький)" formatidan raqam olish
+        const aptMatch = lower.match(/аптека\s*№?\s*(\d+)/);
+        if (aptMatch) {
+            const num = aptMatch[1];
+            const padded = num.padStart(3, '0');
+            // Tur-turli key formatlarini tekshirish
+            if (cache[num]) return cache[num];
+            if (cache[`аптека №${padded}`]) return cache[`аптека №${padded}`];
+            if (cache[`№${padded}`]) return cache[`№${padded}`];
+            if (cache[`аптека ${parseInt(num)}`]) return cache[`аптека ${parseInt(num)}`];
+        }
+
+        // Oddiy raqam bo'yicha (fallback)
         const numMatch = lower.match(/(\d+)/);
         if (numMatch) {
             const num = numMatch[1];
             if (cache[num]) return cache[num];
         }
 
-        // Partial match
+        // Partial match — faqat yetarlicha uzun keylar uchun
         for (const [key, branch] of Object.entries(cache)) {
-            if (key.includes(lower) || lower.includes(key)) {
-                return branch;
+            if (key.length >= 5 && lower.length >= 5) {
+                if (key.includes(lower) || lower.includes(key)) {
+                    return branch;
+                }
             }
         }
 

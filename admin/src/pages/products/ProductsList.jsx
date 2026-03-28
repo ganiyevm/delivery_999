@@ -3,7 +3,6 @@ import api from '../../api/axios';
 
 const CATEGORIES = ['', 'pain', 'antibiotics', 'vitamins', 'heart', 'children', 'cosmetics', 'devices', 'stomach', 'other'];
 const EMPTY_FORM = { name: '', category: 'other', manufacturer: '', country: '', barcode: '', ingredient: '', description_uz: '', description_ru: '', imageUrl: '', requiresRx: false };
-const isSuperAdmin = localStorage.getItem('is_super_admin') === '1';
 
 export default function ProductsList() {
     const [products, setProducts] = useState([]);
@@ -126,9 +125,7 @@ export default function ProductsList() {
                                 <td><span className={`badge ${p.isActive ? 'badge-green' : 'badge-gray'}`}>{p.isActive ? 'Faol' : 'Nofaol'}</span></td>
                                 <td style={{ display: 'flex', gap: 6 }}>
                                     <button className="btn" onClick={() => openEdit(p)}>✏️</button>
-                                    {isSuperAdmin && (
-                                        <button className="btn" title="Narxni tahrirlash" onClick={() => openPrices(p)}>💰</button>
-                                    )}
+                                    <button className="btn" title="Narxni tahrirlash" onClick={() => openPrices(p)}>💰</button>
                                     <button className="btn" onClick={() => handleToggle(p._id)}>{p.isActive ? '🔴' : '🟢'}</button>
                                     <button className="btn btn-danger" onClick={() => handleDelete(p._id)}>🗑</button>
                                 </td>
