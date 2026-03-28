@@ -1,29 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { branchesAPI } from '../api/index';
 
-// ─── Platform aniqlash ───
-function getPlatform() {
-    const ua = navigator.userAgent || '';
-    if (/android/i.test(ua)) return 'android';
-    if (/iphone|ipad|ipod/i.test(ua)) return 'ios';
-    return 'other';
-}
-
-// ─── Xarita ilovasini ochish (native deep link + web fallback) ───
-function openMapApp(nativeUrl, webUrl) {
+// ─── URL ochish — faqat HTTPS, Telegram tashqi brauzerda ochadi ───
+function openMapApp(url) {
     const tg = window.Telegram?.WebApp;
-    const platform = getPlatform();
-
-    // Desktop — faqat web
-    if (platform === 'other') {
-        if (tg?.openLink) tg.openLink(webUrl, { try_instant_view: false });
-        else window.open(webUrl, '_blank');
-        return;
-    }
-
-    // Mobile — native link tashqi brauzerda ochiladi
-    const url = nativeUrl || webUrl;
-    if (tg?.openLink) tg.openLink(url, { try_instant_view: false });
+    if (tg?.openLink) tg.openLink(url);
     else window.open(url, '_blank');
 }
 
@@ -84,72 +65,49 @@ const AppleMapsIcon = () => (
     </svg>
 );
 
-// ─── Xarita variantlari (native + web) ───
-const NAV_OPTIONS = (lat, lng, name, addr) => {
-    const platform = getPlatform();
-
-    return [
-        {
-            label: 'Yandex Navigator',
-            sub: 'Haydovchi navigatsiyasi',
-            Icon: YandexNavIcon,
-            nativeUrl: lat
-                ? `yandexnavi://build_route_on_map?lat_to=${lat}&lon_to=${lng}`
-                : null,
-            webUrl: lat
-                ? `https://yandex.uz/maps/?rtext=~${lat},${lng}&rtt=auto`
-                : `https://yandex.uz/maps/?text=${addr}&rtt=auto`,
-        },
-        {
-            label: 'Yandex Go',
-            sub: 'Taksi — narx va vaqt',
-            Icon: YandexGoIcon,
-            nativeUrl: lat
-                ? `yandexmaps://maps.yandex.ru/?rtext=~${lat},${lng}&rtt=taxi`
-                : null,
-            webUrl: lat
-                ? `https://3.redirect.appmetrica.yandex.com/route?end-lat=${lat}&end-lon=${lng}&appmetrica_tracking_id=1178268795219780156`
-                : 'https://go.yandex',
-        },
-        {
-            label: 'Google Maps',
-            sub: "Yo'nalish va navigatsiya",
-            Icon: GoogleMapsIcon,
-            nativeUrl: lat
-                ? (platform === 'ios'
-                    ? `comgooglemaps://?daddr=${lat},${lng}&directionsmode=driving`
-                    : platform === 'android'
-                        ? `google.navigation:q=${lat},${lng}&mode=d`
-                        : null)
-                : null,
-            webUrl: lat
-                ? `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}&travelmode=driving`
-                : `https://www.google.com/maps/search/?api=1&query=${addr}`,
-        },
-        {
-            label: '2GIS',
-            sub: "O'zbekiston xaritasi",
-            Icon: TwoGisIcon,
-            nativeUrl: lat
-                ? `dgis://2gis.ru/routeSearch/rsType/car/to/${lng},${lat}`
-                : null,
-            webUrl: lat
-                ? `https://2gis.uz/tashkent/directions/points/%7C${lng}%2C${lat}?m=${lng}%2C${lat}%2F17`
-                : `https://2gis.uz/tashkent/search/${addr}`,
-        },
-        {
-            label: 'Apple Maps',
-            sub: 'iPhone va iPad uchun',
-            Icon: AppleMapsIcon,
-            nativeUrl: lat
-                ? `maps://?daddr=${lat},${lng}&dirflg=d`
-                : null,
-            webUrl: lat
-                ? `https://maps.apple.com/?daddr=${lat},${lng}&dirflg=d`
-                : `https://maps.apple.com/?q=${addr}`,
-        },
-    ];
-};
+// ─── Xarita variantlari — faqat ishlaydigan HTTPS URL lar ───
+const NAV_OPTIONS = (lat, lng, name, addr) => [
+    {
+        label: 'Yandex Navigator',
+        sub: 'Haydovchi navigatsiyasi',
+        Icon: YandexNavIcon,
+        url: lat
+            ? `https://yandex.uz/maps/?rtext=~${lat},${lng}&rtt=auto`
+            : `https://yandex.uz/maps/?text=${addr}&rtt=auto`,
+    },
+    {
+        label: 'Yandex Go',
+        sub: 'Taksi — narx va vaqt',
+        Icon: YandexGoIcon,
+        url: lat
+            ? `https://go.yandex/route?end-lat=${lat}&end-lon=${lng}&end-name=${name}`
+            : 'https://go.yandex',
+    },
+    {
+        label: 'Google Maps',
+        sub: "Yo'nalish va navigatsiya",
+        Icon: GoogleMapsIcon,
+        url: lat
+            ? `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}&travelmode=driving`
+            : `https://www.google.com/maps/search/?api=1&query=${addr}`,
+    },
+    {
+        label: '2GIS',
+        sub: "O'zbekiston xaritasi",
+        Icon: TwoGisIcon,
+        url: lat
+            ? `https://2gis.uz/tashkent?m=${lng},${lat}/17`
+            : `https://2gis.uz/tashkent/search/${addr}`,
+    },
+    {
+        label: 'Apple Maps',
+        sub: 'iPhone va iPad uchun',
+        Icon: AppleMapsIcon,
+        url: lat
+            ? `https://maps.apple.com/?daddr=${lat},${lng}&dirflg=d`
+            : `https://maps.apple.com/?q=${addr}`,
+    },
+];
 
 function NavSheet({ branch, onClose }) {
     const lat = branch.location?.lat && branch.location.lat !== 0 ? branch.location.lat : null;
@@ -177,10 +135,10 @@ function NavSheet({ branch, onClose }) {
                 </div>
 
                 {/* Options */}
-                {options.map(({ label, sub, Icon, nativeUrl, webUrl }) => (
+                {options.map(({ label, sub, Icon, url }) => (
                     <button
                         key={label}
-                        onClick={() => { openMapApp(nativeUrl, webUrl); onClose(); }}
+                        onClick={() => { openMapApp(url); onClose(); }}
                         style={{
                             display: 'flex', alignItems: 'center', gap: 14,
                             width: '100%', padding: '11px 20px',
