@@ -33,15 +33,23 @@ export default function Cart({ onNavigate, onPayment }) {
                     );
                     const data = await res.json();
                     const a = data.address || {};
-                    const parts = [
-                        a.road || a.pedestrian || a.footway || a.path,
-                        a.house_number,
-                        a.suburb || a.neighbourhood || a.city_district,
-                        a.city || a.town || a.village || a.county,
-                    ].filter(Boolean);
-                    const humanAddr = parts.length >= 2
-                        ? parts.join(', ')
-                        : (data.display_name?.split(',').slice(0, 3).join(',').trim() || '');
+                    const road = a.road || a.pedestrian || a.footway || a.path || a.name || '';
+                    const houseNum = a.house_number || '';
+                    const district = a.city_district || a.suburb || a.neighbourhood || '';
+                    const city = a.city || a.town || a.village || a.county || '';
+
+                    let humanAddr = '';
+                    if (road && houseNum) {
+                        humanAddr = [road + ', ' + houseNum, district, city].filter(Boolean).join(', ');
+                    } else if (road) {
+                        // uy raqami yo'q — display_name dan birinchi bo'limlarni ol
+                        const dnParts = (data.display_name || '').split(',').map(s => s.trim()).filter(Boolean);
+                        // display_name: "2/1, Bahodir ko'chasi, Toshkent..."
+                        const dnHouse = dnParts[0]?.match(/^\d/) ? dnParts[0] : '';
+                        humanAddr = [road + (dnHouse ? ', ' + dnHouse : ''), district, city].filter(Boolean).join(', ');
+                    } else {
+                        humanAddr = (data.display_name || '').split(',').slice(0, 4).join(',').trim();
+                    }
                     // Koordinatalarni ham saqlash — admin map tugmalari aniq pin ochadi
                     setAddress(humanAddr ? `${humanAddr} (${coords})` : coords);
                 } catch {
