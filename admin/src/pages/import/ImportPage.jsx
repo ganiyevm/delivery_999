@@ -8,6 +8,7 @@ export default function ImportPage() {
     const [phase, setPhase] = useState(''); // 'uploading' | 'processing'
     const [logs, setLogs] = useState([]);
     const fileRef = useRef();
+    const isSuperAdmin = localStorage.getItem('is_super_admin') === '1';
 
     useEffect(() => {
         api.get('/import/logs').then(r => setLogs(r.data || [])).catch(() => { });
@@ -116,15 +117,27 @@ export default function ImportPage() {
             <div className="data-table-wrapper" style={{ marginTop: 24 }}>
                 <div className="data-table-header"><h3>📋 Import tarixi</h3></div>
                 <table className="data-table">
-                    <thead><tr><th>Sana</th><th>Fayl</th><th>Jami</th><th>✅</th><th>❌</th></tr></thead>
+                    <thead><tr><th>Sana</th><th>Fayl</th><th>Jami</th><th>✅</th><th>❌</th>{isSuperAdmin && <th></th>}</tr></thead>
                     <tbody>
                         {logs.map((l, i) => (
                             <tr key={i}>
                                 <td>{new Date(l.importDate).toLocaleDateString()}</td>
-                                <td>{l.filename}</td>
+                                <td style={{ fontSize: 11, color: 'var(--text-secondary)' }}>{l.filename}</td>
                                 <td>{l.totalRows}</td>
                                 <td style={{ color: '#2ECC71' }}>{l.successRows}</td>
                                 <td style={{ color: '#e74c3c' }}>{l.errorRows}</td>
+                                {isSuperAdmin && (
+                                    <td>
+                                        <button className="btn" style={{ color: '#e74c3c', padding: '2px 8px' }}
+                                            onClick={async () => {
+                                                if (!confirm('Bu import tarixini o\'chirasizmi?')) return;
+                                                try {
+                                                    await api.delete(`/admin/import-logs/${l._id}`);
+                                                    setLogs(logs.filter((_, j) => j !== i));
+                                                } catch (err) { alert(err.response?.data?.error || 'Xato'); }
+                                            }}>🗑</button>
+                                    </td>
+                                )}
                             </tr>
                         ))}
                     </tbody>

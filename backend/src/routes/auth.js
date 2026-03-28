@@ -3,6 +3,7 @@ const crypto = require('crypto');
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
 const User = require('../models/User');
+const AdminAccount = require('../models/AdminAccount');
 
 // ─── Telegram WebApp auth ───
 router.post('/telegram', async (req, res, next) => {
@@ -131,31 +132,50 @@ router.post('/dev-login', async (req, res, next) => {
 router.post('/admin/login', async (req, res, next) => {
     try {
         const { username, password } = req.body;
-
-        // Hardcoded admin (production da DB ga o'tkaziladi)
-        const ADMIN_USERNAME = process.env.ADMIN_USERNAME || 'admin';
-        const ADMIN_PASSWORD_HASH = process.env.ADMIN_PASSWORD_HASH ||
-            bcrypt.hashSync('admin999', 10);
-
-        if (username !== ADMIN_USERNAME) {
-            return res.status(401).json({ error: 'Login yoki parol noto\'g\'ri' });
+        if (!username || !password) {
+            return res.status(400).json({ error: 'Login va parol kiritilmagan' });
         }
 
-        const isMatch = await bcrypt.compare(password, ADMIN_PASSWORD_HASH);
-        if (!isMatch) {
-            return res.status(401).json({ error: 'Login yoki parol noto\'g\'ri' });
+        // DB dan qidirish
+        let account = await AdminAccount.findOne({ username, isActive: true });
+
+        if (!account) {
+            // Legacy env var fallback — birinchi marta kirish yoki super_admin uchun
+            const ADMIN_USERNAME = process.env.ADMIN_USERNAME || 'admin';
+            const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'admin999';
+            if (username !== ADMIN_USERNAME) {
+                return res.status(401).json({ error: 'Login yoki parol noto\'g\'ri' });
+            }
+            const isMatch = password === ADMIN_PASSWORD ||
+                await bcrypt.compare(password, process.env.ADMIN_PASSWORD_HASH || '');
+            if (!isMatch) {
+                return res.status(401).json({ error: 'Login yoki parol noto\'g\'ri' });
+            }
+            // DB ga seed qilish — birinchi kirish
+            const hash = await bcrypt.hash(ADMIN_PASSWORD, 10);
+            account = await AdminAccount.findOneAndUpdate(
+                { username },
+                { $setOnInsert: { username, passwordHash: hash, role: 'super_admin', fullName: 'Super Admin' } },
+                { upsert: true, new: true }
+            );
+        } else {
+            const isMatch = await bcrypt.compare(password, account.passwordHash);
+            if (!isMatch) {
+                return res.status(401).json({ error: 'Login yoki parol noto\'g\'ri' });
+            }
         }
 
-        const SUPER_ADMIN = process.env.SUPER_ADMIN_USERNAME || 'admin';
-        const isSuperAdmin = username === SUPER_ADMIN;
+        account.lastLoginAt = new Date();
+        await account.save();
 
+        const isSuperAdmin = account.role === 'super_admin';
         const token = jwt.sign(
-            { adminId: username, isAdmin: true, isSuperAdmin },
+            { adminId: account._id, username: account.username, isAdmin: true, isSuperAdmin, role: account.role },
             process.env.ADMIN_JWT_SECRET,
             { expiresIn: '8h' }
         );
 
-        res.json({ token, admin: { username, isSuperAdmin } });
+        res.json({ token, admin: { username: account.username, role: account.role, isSuperAdmin, fullName: account.fullName } });
     } catch (error) {
         next(error);
     }

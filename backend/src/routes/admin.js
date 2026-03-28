@@ -1,10 +1,13 @@
 const router = require('express').Router();
+const bcrypt = require('bcryptjs');
 const adminAuth = require('../middleware/adminAuth');
 const Order = require('../models/Order');
 const Product = require('../models/Product');
 const Stock = require('../models/Stock');
 const Branch = require('../models/Branch');
 const User = require('../models/User');
+const AdminAccount = require('../models/AdminAccount');
+const ImportLog = require('../models/ImportLog');
 const BonusService = require('../services/bonus.service');
 const telegramService = require('../services/telegram.service');
 const { STATUS_TRANSITIONS } = require('../config/constants');
@@ -329,6 +332,68 @@ router.post('/users/:id/bonus', async (req, res, next) => {
         const balance = await BonusService.addPromoBonus(req.params.id, points, description);
         res.json({ message: `+${points} ball qo'shildi`, balance });
     } catch (error) { next(error); }
+});
+
+// ================== ADMIN ACCOUNTLAR (faqat super_admin) ==================
+
+const superOnly = (req, res, next) => {
+    if (!req.isSuperAdmin) return res.status(403).json({ error: 'Faqat super admin' });
+    next();
+};
+
+router.get('/accounts', superOnly, async (req, res, next) => {
+    try {
+        const accounts = await AdminAccount.find().select('-passwordHash').sort({ createdAt: -1 }).lean();
+        res.json(accounts);
+    } catch (e) { next(e); }
+});
+
+router.post('/accounts', superOnly, async (req, res, next) => {
+    try {
+        const { username, password, role, fullName } = req.body;
+        if (!username || !password || !role) return res.status(400).json({ error: 'username, password, role kerak' });
+        const existing = await AdminAccount.findOne({ username });
+        if (existing) return res.status(400).json({ error: 'Bu login band' });
+        const passwordHash = await bcrypt.hash(password, 10);
+        const account = await AdminAccount.create({
+            username, passwordHash, role, fullName: fullName || '',
+            createdBy: req.adminUsername || 'super_admin',
+        });
+        res.status(201).json({ _id: account._id, username: account.username, role: account.role, fullName: account.fullName, isActive: account.isActive });
+    } catch (e) { next(e); }
+});
+
+router.put('/accounts/:id', superOnly, async (req, res, next) => {
+    try {
+        const { password, role, fullName, isActive } = req.body;
+        const update = {};
+        if (role) update.role = role;
+        if (fullName !== undefined) update.fullName = fullName;
+        if (isActive !== undefined) update.isActive = isActive;
+        if (password) update.passwordHash = await bcrypt.hash(password, 10);
+        const account = await AdminAccount.findByIdAndUpdate(req.params.id, update, { new: true }).select('-passwordHash');
+        if (!account) return res.status(404).json({ error: 'Topilmadi' });
+        res.json(account);
+    } catch (e) { next(e); }
+});
+
+router.delete('/accounts/:id', superOnly, async (req, res, next) => {
+    try {
+        const account = await AdminAccount.findById(req.params.id);
+        if (!account) return res.status(404).json({ error: 'Topilmadi' });
+        if (account.role === 'super_admin') return res.status(400).json({ error: 'Super adminni o\'chirib bo\'lmaydi' });
+        await AdminAccount.findByIdAndDelete(req.params.id);
+        res.json({ message: 'O\'chirildi' });
+    } catch (e) { next(e); }
+});
+
+// ================== IMPORT LOG O'CHIRISH (faqat super_admin) ==================
+
+router.delete('/import-logs/:id', superOnly, async (req, res, next) => {
+    try {
+        await ImportLog.findByIdAndDelete(req.params.id);
+        res.json({ message: 'O\'chirildi' });
+    } catch (e) { next(e); }
 });
 
 module.exports = router;

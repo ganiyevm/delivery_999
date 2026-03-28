@@ -8,6 +8,7 @@ import ProductsList from './pages/products/ProductsList';
 import BranchesList from './pages/branches/BranchesList';
 import UsersList from './pages/users/UsersList';
 import ImportPage from './pages/import/ImportPage';
+import AdminAccountsPage from './pages/accounts/AdminAccountsPage';
 
 function PrivateRoute({ children }) {
     const token = localStorage.getItem('admin_token');
@@ -31,6 +32,7 @@ export default function App() {
                         <Route path="/branches" element={<BranchesList />} />
                         <Route path="/users" element={<UsersList />} />
                         <Route path="/import" element={<ImportPage />} />
+                        <Route path="/accounts" element={<AdminAccountsPage />} />
                         <Route path="*" element={<Navigate to="/" />} />
                     </Routes>
                 </main>
