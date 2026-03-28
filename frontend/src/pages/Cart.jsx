@@ -23,9 +23,25 @@ export default function Cart({ onNavigate, onPayment }) {
         if (!navigator.geolocation) return alert('Qurilmangiz geolokatsiyani qo\'llab-quvvatlamaydi');
         setGeoLoading(true);
         navigator.geolocation.getCurrentPosition(
-            (pos) => {
+            async (pos) => {
                 const { latitude, longitude } = pos.coords;
-                setAddress(`📍 ${latitude.toFixed(6)}, ${longitude.toFixed(6)}`);
+                try {
+                    const res = await fetch(
+                        `https://nominatim.openstreetmap.org/reverse?lat=${latitude}&lon=${longitude}&format=json&accept-language=uz`,
+                        { headers: { 'Accept-Language': 'uz,ru' } }
+                    );
+                    const data = await res.json();
+                    const a = data.address || {};
+                    const parts = [
+                        a.road || a.pedestrian || a.suburb,
+                        a.house_number,
+                        a.city_district || a.suburb || a.neighbourhood,
+                        a.city || a.town || a.village,
+                    ].filter(Boolean);
+                    setAddress(parts.length ? parts.join(', ') : data.display_name || `${latitude.toFixed(5)}, ${longitude.toFixed(5)}`);
+                } catch {
+                    setAddress(`${latitude.toFixed(5)}, ${longitude.toFixed(5)}`);
+                }
                 setGeoLoading(false);
             },
             () => {
@@ -177,11 +193,21 @@ export default function Cart({ onNavigate, onPayment }) {
                                     fontSize: 20, cursor: 'pointer', display: 'flex',
                                     alignItems: 'center', justifyContent: 'center',
                                 }}>
-                                {geoLoading ? '⏳' : '📍'}
+                                {geoLoading ? (
+                                    <svg width="20" height="20" viewBox="0 0 20 20" fill="none" style={{ animation: 'spin 1s linear infinite' }}>
+                                        <circle cx="10" cy="10" r="8" stroke="white" strokeWidth="2.5" strokeDasharray="40" strokeDashoffset="10"/>
+                                    </svg>
+                                ) : (
+                                    <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+                                        <circle cx="10" cy="8" r="4" stroke="white" strokeWidth="2"/>
+                                        <path d="M10 2C6.69 2 4 4.69 4 8c0 4.5 6 10 6 10s6-5.5 6-10c0-3.31-2.69-6-6-6z" stroke="white" strokeWidth="2" fill="none"/>
+                                        <circle cx="10" cy="8" r="1.5" fill="white"/>
+                                    </svg>
+                                )}
                             </button>
                         </div>
                         <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginTop: 4 }}>
-                            📍 tugmasi orqali joylashuvingizni avtomatik aniqlang
+                            Tugma orqali joylashuvingizni avtomatik aniqlang
                         </div>
                     </div>
                 )}
