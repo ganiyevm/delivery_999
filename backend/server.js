@@ -60,6 +60,7 @@ app.use('/api/payment', require('./src/routes/payment'));
 app.use('/api/import', require('./src/routes/import'));
 app.use('/api/analytics', require('./src/routes/analytics'));
 app.use('/api/admin', require('./src/routes/admin'));
+app.use('/api', require('./src/routes/verify'));
 
 // ─── Telegram Bot Webhook (bot port 3001 ga proxy) ───
 const http = require('http');

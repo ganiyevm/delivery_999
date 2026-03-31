@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import api from '../../api/axios';
+import { useT } from '../../i18n';
 
 const ROLES = [
     { value: 'admin',      label: 'Admin — hamma narsa (user boshqarish yo\'q)' },
@@ -19,6 +20,7 @@ const ROLE_BADGE = {
 const empty = { username: '', password: '', role: 'operator', fullName: '' };
 
 export default function AdminAccountsPage() {
+    const { t } = useT();
     const [accounts, setAccounts] = useState([]);
     const [form, setForm] = useState(empty);
     const [editing, setEditing] = useState(null); // account _id
@@ -78,14 +80,14 @@ export default function AdminAccountsPage() {
     return (
         <div>
             <div className="topbar">
-                <h2>🔑 Admin foydalanuvchilar</h2>
-                <button className="btn btn-primary" onClick={openNew}>+ Yangi admin</button>
+                <h2>🔑 {t('accounts')}</h2>
+                <button className="btn btn-primary" onClick={openNew}>+ {t('addAccount')}</button>
             </div>
 
             <div className="data-table-wrapper">
                 <table className="data-table">
                     <thead>
-                        <tr><th>Login</th><th>Ism</th><th>Rol</th><th>Holat</th><th>Oxirgi kirish</th><th>Amal</th></tr>
+                        <tr><th>Login</th><th>{t('fullName')}</th><th>{t('role')}</th><th>{t('status')}</th><th>{t('lastLogin')}</th><th>{t('actions')}</th></tr>
                     </thead>
                     <tbody>
                         {accounts.map(acc => {
@@ -96,12 +98,12 @@ export default function AdminAccountsPage() {
                                     <td>{acc.fullName || '—'}</td>
                                     <td>
                                         <span style={{ background: rb.color + '22', color: rb.color, padding: '2px 10px', borderRadius: 20, fontSize: 12, fontWeight: 600 }}>
-                                            {rb.label}
+                                            {t(acc.role)}
                                         </span>
                                     </td>
                                     <td>
                                         <span style={{ color: acc.isActive ? '#27AE60' : '#e74c3c', fontWeight: 600, fontSize: 12 }}>
-                                            {acc.isActive ? '● Faol' : '● Nofaol'}
+                                            {acc.isActive ? `● ${t('active')}` : `● ${t('inactive')}`}
                                         </span>
                                     </td>
                                     <td style={{ fontSize: 12, color: 'var(--text-secondary)' }}>
@@ -128,7 +130,7 @@ export default function AdminAccountsPage() {
                 <div className="modal-overlay" onClick={() => setShowForm(false)}>
                     <div className="modal" onClick={e => e.stopPropagation()}>
                         <div className="modal-header">
-                            <h3>{editing ? '✏️ Tahrirlash' : '+ Yangi admin'}</h3>
+                            <h3>{editing ? `✏️ ${t('editAccount')}` : `+ ${t('addAccount')}`}</h3>
                             <button className="modal-close" onClick={() => setShowForm(false)}>✕</button>
                         </div>
                         {error && <div style={{ color: '#e74c3c', marginBottom: 12, fontSize: 13 }}>❌ {error}</div>}
@@ -142,26 +144,26 @@ export default function AdminAccountsPage() {
                                 </div>
                             )}
                             <div className="form-group">
-                                <label className="form-label">Ism (ixtiyoriy)</label>
+                                <label className="form-label">{t('fullName')}</label>
                                 <input className="form-input" value={form.fullName}
                                     onChange={e => setForm({ ...form, fullName: e.target.value })}
                                     placeholder="Abdullayev Sardor" />
                             </div>
                             <div className="form-group">
-                                <label className="form-label">{editing ? 'Yangi parol (bo\'sh qoldirsa o\'zgarmaydi)' : 'Parol *'}</label>
+                                <label className="form-label">{editing ? t('newPassword') : `${t('password')} *`}</label>
                                 <input className="form-input" type="password" value={form.password}
                                     onChange={e => setForm({ ...form, password: e.target.value })}
                                     placeholder="••••••" autoComplete="new-password" />
                             </div>
                             <div className="form-group">
-                                <label className="form-label">Rol *</label>
+                                <label className="form-label">{t('role')} *</label>
                                 <select className="form-input" value={form.role}
                                     onChange={e => setForm({ ...form, role: e.target.value })}>
                                     {ROLES.map(r => <option key={r.value} value={r.value}>{r.label}</option>)}
                                 </select>
                             </div>
                             <button className="btn btn-primary" onClick={handleSave} disabled={loading}>
-                                {loading ? '⏳' : (editing ? 'Saqlash' : 'Yaratish')}
+                                {loading ? '⏳' : (editing ? t('save') : t('add'))}
                             </button>
                         </div>
                     </div>

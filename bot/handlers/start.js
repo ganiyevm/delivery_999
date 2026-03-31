@@ -1,25 +1,35 @@
 const { InlineKeyboard } = require('grammy');
+const { getLang } = require('../locales');
+const User = require('../../backend/src/models/User');
+const Branch = require('../../backend/src/models/Branch');
+
+// Foydalanuvchi tilini DB dan olish (topilmasa Telegram language_code ishlatiladi)
+async function getUserLang(ctx) {
+    try {
+        const user = await User.findOne({ telegramId: ctx.from.id }).select('language').lean();
+        if (user?.language) return user.language;
+    } catch (_) {}
+    const tgLang = ctx.from?.language_code || 'uz';
+    if (tgLang.startsWith('ru')) return 'ru';
+    if (tgLang.startsWith('en')) return 'en';
+    return 'uz';
+}
 
 module.exports = (bot) => {
     bot.command('start', async (ctx) => {
         const webAppUrl = process.env.WEBAPP_URL || 'https://your-miniapp.com';
+        const langCode  = await getUserLang(ctx);
+        const loc       = getLang(langCode);
 
-        const keyboard = new InlineKeyboard()
-            .webApp('🏥 Aptekani ochish', webAppUrl);
+        let branchCount = 20;
+        try {
+            branchCount = await Branch.countDocuments();
+        } catch (_) {}
+
+        const keyboard = new InlineKeyboard().webApp(loc.openApp, webAppUrl);
 
         try {
-            await ctx.reply(
-                `🏥 <b>Сеть Аптек 999</b> ga xush kelibsiz!\n\n` +
-                `💊 4000+ turdagi dorilar\n` +
-                `🏥 20 ta filial Тoshkent bo'ylab\n` +
-                `🚚 1-2 soat ichida yetkazib berish\n` +
-                `💳 Click va Payme orqali to'lov\n\n` +
-                `Quyidagi tugmani bosib xarid qiling 👇`,
-                {
-                    parse_mode: 'HTML',
-                    reply_markup: keyboard,
-                }
-            );
+            await ctx.reply(loc.welcome(branchCount), { parse_mode: 'HTML', reply_markup: keyboard });
         } catch (err) {
             if (err.error_code === 403) {
                 console.log(`⚠️ Foydalanuvchi botni bloklagan: ${ctx.from?.id}`);
@@ -31,12 +41,9 @@ module.exports = (bot) => {
 
     // /stats — admin uchun bugungi statistika
     bot.command('stats', async (ctx) => {
-        if (!ctx.isAdmin) {
-            return ctx.reply('⛔ Sizda bu buyruqqa ruxsat yo\'q');
-        }
+        if (!ctx.isAdmin) return ctx.reply(getLang('uz').noAccess);
 
         const Order = require('../../backend/src/models/Order');
-        const User = require('../../backend/src/models/User');
 
         const today = new Date();
         today.setHours(0, 0, 0, 0);
@@ -50,45 +57,36 @@ module.exports = (bot) => {
 
         const delivered = orders.filter(o => o.status === 'delivered');
         const cancelled = orders.filter(o => ['cancelled', 'rejected'].includes(o.status));
-        const revenue = delivered.reduce((s, o) => s + o.total, 0);
+        const revenue   = delivered.reduce((s, o) => s + o.total, 0);
 
-        // Top dori
         const itemCounts = {};
-        delivered.forEach(o => {
-            o.items.forEach(i => {
-                itemCounts[i.productName] = (itemCounts[i.productName] || 0) + i.qty;
-            });
-        });
+        delivered.forEach(o => o.items.forEach(i => {
+            itemCounts[i.productName] = (itemCounts[i.productName] || 0) + i.qty;
+        }));
         const topDrug = Object.entries(itemCounts).sort((a, b) => b[1] - a[1])[0];
 
-        const dateStr = new Date().toLocaleDateString('uz-UZ');
+        // Admin tiliga qarab statistika (default uz)
+        const langCode = await getUserLang(ctx);
+        const loc      = getLang(langCode);
+        const dateStr  = new Date().toLocaleDateString('uz-UZ');
 
         await ctx.reply(
-            `📊 <b>${dateStr} statistika</b>\n` +
-            `─────────────────────────\n` +
-            `📦 Buyurtmalar: <b>${orders.length}</b> ta\n` +
-            `✅ Yetkazildi: <b>${delivered.length}</b> ta\n` +
-            `❌ Bekor: <b>${cancelled.length}</b> ta\n` +
-            `💰 Tushum: <b>${revenue.toLocaleString()}</b> сўм\n` +
-            `👥 Yangi foydalanuvchilar: <b>${newUsers}</b>\n` +
-            (topDrug ? `🏆 Top dori: ${topDrug[0]} (${topDrug[1]} ta)\n` : ''),
+            loc.stats(dateStr, orders.length, delivered.length, cancelled.length, revenue, newUsers, topDrug),
             { parse_mode: 'HTML' }
         );
     });
 
     // /branches — filiallar holati
     bot.command('branches', async (ctx) => {
-        if (!ctx.isAdmin) {
-            return ctx.reply('⛔ Sizda bu buyruqqa ruxsat yo\'q');
-        }
+        if (!ctx.isAdmin) return ctx.reply(getLang('uz').noAccess);
 
-        const Branch = require('../../backend/src/models/Branch');
-        const branches = await Branch.find().sort({ number: 1 }).lean();
+        const branches   = await Branch.find().sort({ number: 1 }).lean();
+        const langCode   = await getUserLang(ctx);
+        const loc        = getLang(langCode);
 
-        let text = '🏥 <b>Filiallar holati</b>\n─────────────────────────\n';
+        let text = loc.branches;
         branches.forEach(b => {
-            const status = b.isOpen ? '🟢' : '🔴';
-            text += `${status} №${String(b.number).padStart(3, '0')} ${b.name}\n`;
+            text += `${b.isOpen ? '🟢' : '🔴'} №${String(b.number).padStart(3, '0')} ${b.name}\n`;
         });
 
         await ctx.reply(text, { parse_mode: 'HTML' });

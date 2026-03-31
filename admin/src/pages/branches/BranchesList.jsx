@@ -1,17 +1,43 @@
 import React, { useState, useEffect } from 'react';
 import api from '../../api/axios';
+import { useT } from '../../i18n';
 
 const YANDEX_KEY = 'b282d82a-e502-4d33-acb3-d5bd433af913';
 
 const emptyForm = { name: '', address: '', phone: '', hours: '09:00 — 22:00', operatorChatId: '', operatorIds: '', courierIds: '', lat: '', lng: '' };
 
+const BRANCH_INFO = [
+    { number: 1,  address: 'Мирзо-Улугбек туман, Буюк Ипак Йули кучаси, 103/33-уй', phone: '+998712671581' },
+    { number: 2,  address: 'Юнусобод тумани, 2-мавзе, А.Темур кучаси, 7Б-уй', phone: '+998712213424' },
+    { number: 3,  address: 'Чилонзор тумани, 16-мавзе, 15-уй, 1-хонадон', phone: '+998712764656' },
+    { number: 4,  address: 'Чилонзор тумани, Катортол кучаси, 7-мавзе, 10/1-уй', phone: '+998712735700' },
+    { number: 5,  address: 'Шайхонтохур тумани, марказ 27, Богкуча кучаси, 3-уй', phone: '+998712420109' },
+    { number: 6,  address: 'Юнусобод тумани, Кичик Халка Йули кучаси, 36-уй, 14-хонадон', phone: '+998555039994' },
+    { number: 7,  address: 'Яккасарой тумани, Ш.Руставелли кучаси, 13-уй', phone: '+998712566669' },
+    { number: 8,  address: 'Шайхонтохур тумани, Абдулла Кодирий кучаси, 21-уй', phone: '+998712446550' },
+    { number: 9,  address: 'Мирзо-Улугбек тумани, Муннаваркори кучаси, 9-уй', phone: '+998712642122' },
+    { number: 10, address: 'Мирзо-Улугбек тумани, Осиё кучаси, 17А-уй', phone: '+998712351118' },
+    { number: 11, address: 'Юнусобод тумани, Мойкургон кучаси, 66А-уй', phone: '+998712074449' },
+    { number: 12, address: 'Мирзо-Улугбек тумани, Ялангоч м-в, Э.Отахонов кучаси, 3А-уй', phone: '+998712620405' },
+    { number: 14, address: 'Шайхонтохур тумани, Фаробий кучаси, 332-уй', phone: '+998887820999' },
+    { number: 15, address: 'Юнусобод тумани, 13-мавзе, Янгишахар кучаси, 70-уй', phone: '+998951441979' },
+    { number: 16, address: 'Юнусобод тумани, марказ 6, Осиё кучаси, 85-уй, 42-хонадон', phone: '+998712350680' },
+    { number: 17, address: 'Сергели тумани, Кум-Арик кучаси, 13-уй', phone: '' },
+    { number: 18, address: 'Мирзо-Улугбек тумани, Корасув 3 дахаси кучаси, 14В-уй', phone: '+998970019969' },
+    { number: 19, address: 'Мирзо-Улугбек тумани, Буюк Ипак Йули массиви, 6-уй, 47-хонадон', phone: '+998712335999' },
+    { number: 20, address: 'Юнусобод тумани, 19-мавзе, 49-уй', phone: '+998555160999' },
+];
+
 export default function BranchesList() {
+    const { t } = useT();
     const [branches, setBranches] = useState([]);
     const [editing, setEditing] = useState(null);   // branch obj yoki 'new'
     const [form, setForm] = useState({});
     const [newNumber, setNewNumber] = useState('');
     const [geoLoading, setGeoLoading] = useState(false);
     const [saving, setSaving] = useState(false);
+    const [bulkLoading, setBulkLoading] = useState(false);
+    const [copiedPhone, setCopiedPhone] = useState(null);
 
     const role = localStorage.getItem('admin_role') || 'operator';
     const canManage = role === 'super_admin' || role === 'admin';
@@ -96,17 +122,38 @@ export default function BranchesList() {
         ? `https://www.google.com/maps?q=${lat},${lng}`
         : null;
 
+    const handleBulkUpdate = async () => {
+        if (!confirm(`${BRANCH_INFO.length} ta filial manzil va telefoni yangilansinmi?`)) return;
+        setBulkLoading(true);
+        try {
+            const { data } = await api.post('/admin/branches/bulk-update', { items: BRANCH_INFO });
+            alert(`✅ ${data.updated}/${data.total} filial yangilandi`);
+            load();
+        } catch (err) {
+            alert(err.response?.data?.error || 'Xato');
+        } finally {
+            setBulkLoading(false);
+        }
+    };
+
     return (
         <div>
             <div className="topbar">
-                <h2>🏥 Filiallar ({branches.length})</h2>
-                {canManage && <button className="btn btn-primary" onClick={openNew}>+ Filial qo'shish</button>}
+                <h2>🏥 {t('branches')} ({branches.length})</h2>
+                <div style={{ display: 'flex', gap: 8 }}>
+                    {canManage && (
+                        <button className="btn" onClick={handleBulkUpdate} disabled={bulkLoading}>
+                            {bulkLoading ? '⏳' : `📋 ${t('updateAddresses')}`}
+                        </button>
+                    )}
+                    {canManage && <button className="btn btn-primary" onClick={openNew}>+ {t('addBranch')}</button>}
+                </div>
             </div>
 
             <div className="data-table-wrapper">
                 <table className="data-table">
                     <thead>
-                        <tr><th>№</th><th>Nomi</th><th>Manzil</th><th>Tel</th><th>Koordinata</th><th>Holat</th><th>Amallar</th></tr>
+                        <tr><th>№</th><th>{t('name')}</th><th>{t('address')}</th><th>{t('phone')}</th><th>GPS</th><th>{t('status')}</th><th>{t('actions')}</th></tr>
                     </thead>
                     <tbody>
                         {branches.map(b => (
@@ -114,7 +161,18 @@ export default function BranchesList() {
                                 <td>№{String(b.number).padStart(3, '0')}</td>
                                 <td style={{ fontWeight: 600 }}>{b.name}</td>
                                 <td style={{ fontSize: 12 }}>{b.address || '—'}</td>
-                                <td>{b.phone || '—'}</td>
+                                <td>
+                                    {b.phone
+                                        ? <span
+                                            onClick={() => {
+                                                navigator.clipboard.writeText(b.phone);
+                                                setCopiedPhone(b._id);
+                                                setTimeout(() => setCopiedPhone(null), 2000);
+                                            }}
+                                            style={{ color: 'var(--blue-light)', fontWeight: 500, cursor: 'pointer', userSelect: 'none' }}
+                                          >{copiedPhone === b._id ? '✅ Nusxalandi' : `📞 ${b.phone}`}</span>
+                                        : <span style={{ color: 'var(--text-secondary)' }}>—</span>}
+                                </td>
                                 <td style={{ fontSize: 11 }}>
                                     {b.location?.lat && b.location?.lng && b.location.lat !== 0 ? (
                                         <a href={mapUrl(b.location.lat, b.location.lng)} target="_blank" rel="noreferrer"
@@ -123,7 +181,7 @@ export default function BranchesList() {
                                         </a>
                                     ) : <span style={{ color: 'var(--text-secondary)' }}>—</span>}
                                 </td>
-                                <td><span className={`badge ${b.isOpen ? 'badge-green' : 'badge-red'}`}>{b.isOpen ? 'Ochiq' : 'Yopiq'}</span></td>
+                                <td><span className={`badge ${b.isOpen ? 'badge-green' : 'badge-red'}`}>{b.isOpen ? t('open') : t('closed')}</span></td>
                                 <td style={{ display: 'flex', gap: 4 }}>
                                     <button className="btn" onClick={() => openEdit(b)}>✏️</button>
                                     <button className="btn" onClick={() => handleToggle(b._id)}>{b.isOpen ? '🔴' : '🟢'}</button>
@@ -141,20 +199,20 @@ export default function BranchesList() {
                 <div className="modal-overlay" onClick={() => setEditing(null)}>
                     <div className="modal" style={{ maxWidth: 520 }} onClick={e => e.stopPropagation()}>
                         <div className="modal-header">
-                            <h3>{editing === 'new' ? '+ Yangi filial' : `✏️ №${String(editing.number).padStart(3, '0')} ${editing.name}`}</h3>
+                            <h3>{editing === 'new' ? `+ ${t('addBranch')}` : `✏️ №${String(editing.number).padStart(3, '0')} ${editing.name}`}</h3>
                             <button className="modal-close" onClick={() => setEditing(null)}>✕</button>
                         </div>
 
                         {editing === 'new' && (
                             <div className="form-group">
-                                <label className="form-label">Filial raqami *</label>
+                                <label className="form-label">{t('branchNumber')} *</label>
                                 <input className="form-input" type="number" value={newNumber} onChange={e => setNewNumber(e.target.value)} placeholder="21" />
                             </div>
                         )}
-                        <div className="form-group"><label className="form-label">Nomi *</label><input className="form-input" value={form.name || ''} onChange={e => setForm({ ...form, name: e.target.value })} /></div>
-                        <div className="form-group"><label className="form-label">Manzil</label><input className="form-input" value={form.address || ''} onChange={e => setForm({ ...form, address: e.target.value })} placeholder="Ko'cha, uy raqami, tuman" /></div>
-                        <div className="form-group"><label className="form-label">Telefon</label><input className="form-input" value={form.phone || ''} onChange={e => setForm({ ...form, phone: e.target.value })} /></div>
-                        <div className="form-group"><label className="form-label">Ish vaqti</label><input className="form-input" value={form.hours || ''} onChange={e => setForm({ ...form, hours: e.target.value })} /></div>
+                        <div className="form-group"><label className="form-label">{t('name')} *</label><input className="form-input" value={form.name || ''} onChange={e => setForm({ ...form, name: e.target.value })} /></div>
+                        <div className="form-group"><label className="form-label">{t('address')}</label><input className="form-input" value={form.address || ''} onChange={e => setForm({ ...form, address: e.target.value })} /></div>
+                        <div className="form-group"><label className="form-label">{t('phone')}</label><input className="form-input" value={form.phone || ''} onChange={e => setForm({ ...form, phone: e.target.value })} /></div>
+                        <div className="form-group"><label className="form-label">{t('hours')}</label><input className="form-input" value={form.hours || ''} onChange={e => setForm({ ...form, hours: e.target.value })} /></div>
 
                         {/* Geolokatsiya */}
                         <div className="form-group">
@@ -186,7 +244,7 @@ export default function BranchesList() {
                         <div className="form-group"><label className="form-label">Kuryer IDs (vergul bilan)</label><input className="form-input" value={form.courierIds || ''} onChange={e => setForm({ ...form, courierIds: e.target.value })} /></div>
 
                         <button className="btn btn-primary" style={{ width: '100%' }} onClick={handleSave} disabled={saving}>
-                            {saving ? '⏳ Saqlanmoqda...' : 'Saqlash'}
+                            {saving ? `⏳ ${t('loading')}` : t('save')}
                         </button>
                     </div>
                 </div>

@@ -1,17 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { ordersAPI } from '../../api/index';
+import { useT } from '../../i18n';
 
-const STATUS_LABELS = {
-    awaiting_payment: '⏳ To\'lov kutilmoqda',
-    pending_operator: '🔄 Tekshirilmoqda',
-    confirmed: '✅ Tasdiqlandi',
-    rejected: '❌ Rad etildi',
-    on_the_way: '🚗 Yo\'lda',
-    delivered: '✅ Yetkazildi',
-    cancelled: '❌ Bekor qilindi',
+const STATUS_ICONS = {
+    awaiting_payment: '⏳', pending_operator: '🔄', confirmed: '✅',
+    rejected: '❌', on_the_way: '🚗', delivered: '✅', cancelled: '❌',
 };
 
 export default function Orders({ onBack }) {
+    const { t } = useT();
     const [orders, setOrders] = useState([]);
     const [loading, setLoading] = useState(true);
 
@@ -26,15 +23,15 @@ export default function Orders({ onBack }) {
 
     return (
         <div className="page">
-            <div className="back-bar"><button className="back-btn" onClick={onBack}>←</button><h2>📦 Buyurtmalarim</h2></div>
+            <div className="back-bar"><button className="back-btn" onClick={onBack}>←</button><h2>📦 {t('myOrders')}</h2></div>
             {orders.length === 0 ? (
-                <div className="empty-state"><div className="icon">📦</div><h3>Buyurtmalar yo'q</h3></div>
+                <div className="empty-state"><div className="icon">📦</div><h3>{t('noOrders')}</h3></div>
             ) : (
                 orders.map(o => (
                     <div key={o._id} className="card fade-up" style={{ margin: '0 20px 10px' }}>
                         <div className="flex-between mb-8">
                             <span style={{ fontWeight: 800, fontSize: 14 }}>#{o.orderNumber}</span>
-                            <span className={`badge badge-status-${o.status}`}>{STATUS_LABELS[o.status]}</span>
+                            <span className={`badge badge-status-${o.status}`}>{STATUS_ICONS[o.status]} {t(o.status)}</span>
                         </div>
                         <div style={{ fontSize: 13, color: 'var(--text-secondary)', marginBottom: 6 }}>
                             {o.items?.length || 0} ta dori • {o.branch?.name || ''}

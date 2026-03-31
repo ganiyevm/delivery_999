@@ -14,6 +14,7 @@ import Orders from './pages/profile/Orders';
 import Addresses from './pages/profile/Addresses';
 import Bonus from './pages/profile/Bonus';
 import Settings from './pages/profile/Settings';
+import Scanner from './pages/Scanner';
 
 function AppContent() {
     const [page, setPage] = useState('home');
@@ -78,11 +79,11 @@ function AppContent() {
         );
     }
 
-    const showNav = !['productDetail', 'payment', 'favorites', 'orders', 'addresses', 'bonus', 'settings'].includes(page);
+    const showNav = !['productDetail', 'payment', 'favorites', 'orders', 'addresses', 'bonus', 'settings', 'scanner'].includes(page);
 
     return (
         <>
-            {page === 'home' && <Home onNavigate={navigate} onProduct={openProduct} onScanner={() => navigate('catalog')} />}
+            {page === 'home' && <Home onNavigate={navigate} onProduct={openProduct} onScanner={() => navigate('scanner')} />}
             {page === 'catalog' && <Catalog onProduct={openProduct} initialCategory={catalogCategory} />}
             {page === 'productDetail' && <ProductDetail productId={productId} onBack={() => setPage('catalog')} />}
             {page === 'branches' && <Branches />}
@@ -94,6 +95,7 @@ function AppContent() {
             {page === 'addresses' && <Addresses onBack={() => setPage('profile')} />}
             {page === 'bonus' && <Bonus onBack={() => setPage('profile')} />}
             {page === 'settings' && <Settings onBack={() => setPage('profile')} />}
+            {page === 'scanner' && <Scanner onBack={() => setPage('home')} />}
             {showNav && <BottomNav active={page} onNavigate={navigate} />}
         </>
     );

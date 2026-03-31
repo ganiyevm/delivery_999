@@ -1,5 +1,6 @@
 import React from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
+import { LangProvider } from './i18n';
 import Sidebar from './components/Sidebar';
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
@@ -18,25 +19,27 @@ function PrivateRoute({ children }) {
 export default function App() {
     const isLogin = window.location.pathname === '/admin/login';
 
-    if (isLogin) return <Login />;
+    if (isLogin) return <LangProvider><Login /></LangProvider>;
 
     return (
-        <PrivateRoute>
-            <div className="admin-layout">
-                <Sidebar />
-                <main className="main-content">
-                    <Routes>
-                        <Route path="/" element={<Dashboard />} />
-                        <Route path="/orders" element={<OrdersList />} />
-                        <Route path="/products" element={<ProductsList />} />
-                        <Route path="/branches" element={<BranchesList />} />
-                        <Route path="/users" element={<UsersList />} />
-                        <Route path="/import" element={<ImportPage />} />
-                        <Route path="/accounts" element={<AdminAccountsPage />} />
-                        <Route path="*" element={<Navigate to="/" />} />
-                    </Routes>
-                </main>
-            </div>
-        </PrivateRoute>
+        <LangProvider>
+            <PrivateRoute>
+                <div className="admin-layout">
+                    <Sidebar />
+                    <main className="main-content">
+                        <Routes>
+                            <Route path="/" element={<Dashboard />} />
+                            <Route path="/orders" element={<OrdersList />} />
+                            <Route path="/products" element={<ProductsList />} />
+                            <Route path="/branches" element={<BranchesList />} />
+                            <Route path="/users" element={<UsersList />} />
+                            <Route path="/import" element={<ImportPage />} />
+                            <Route path="/accounts" element={<AdminAccountsPage />} />
+                            <Route path="*" element={<Navigate to="/" />} />
+                        </Routes>
+                    </main>
+                </div>
+            </PrivateRoute>
+        </LangProvider>
     );
 }

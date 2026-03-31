@@ -1,15 +1,17 @@
 import React from 'react';
 import { useCart } from '../context/CartContext';
+import { useT } from '../i18n';
 
 export default function BottomNav({ active, onNavigate }) {
     const { count } = useCart();
+    const { t } = useT();
 
     const tabs = [
-        { key: 'home', icon: '🏠', label: 'Bosh' },
-        { key: 'catalog', icon: '💊', label: 'Katalog' },
-        { key: 'branches', icon: '🏥', label: 'Filial' },
-        { key: 'cart', icon: '🛒', label: 'Savat' },
-        { key: 'profile', icon: '👤', label: 'Profil' },
+        { key: 'home', icon: '🏠', label: t('home') },
+        { key: 'catalog', icon: '💊', label: t('catalog') },
+        { key: 'branches', icon: '🏥', label: t('branches') },
+        { key: 'cart', icon: '🛒', label: t('cart') },
+        { key: 'profile', icon: '👤', label: t('profile') },
     ];
 
     return (

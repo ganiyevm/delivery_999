@@ -13,7 +13,7 @@ const userSchema = new mongoose.Schema({
     phone: { type: String, default: '' },
     language: {
         type: String,
-        enum: ['uz', 'ru'],
+        enum: ['uz', 'ru', 'en'],
         default: 'uz',
     },
     bonusPoints: { type: Number, default: 0 },

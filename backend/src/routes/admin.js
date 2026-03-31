@@ -16,15 +16,36 @@ const XLSX = require('xlsx');
 
 router.use(adminAuth);
 
+// ================== DASHBOARD - RECENT ORDERS ==================
+
+router.get('/recent-orders', async (req, res, next) => {
+    try {
+        const orders = await Order.find()
+            .populate('branch', 'number name')
+            .sort({ createdAt: -1 })
+            .limit(10)
+            .lean();
+        res.json(orders);
+    } catch (error) { next(error); }
+});
+
 // ================== BUYURTMALAR ==================
 
 router.get('/orders', async (req, res, next) => {
     try {
-        const { status, branch, date, search, page = 1, limit = 20 } = req.query;
+        const { status, branch, date, dateFrom, dateTo, search, page = 1, limit = 20 } = req.query;
         const filter = {};
         if (status) filter.status = status;
         if (branch) filter.branch = branch;
-        if (date) {
+        if (dateFrom || dateTo) {
+            filter.createdAt = {};
+            if (dateFrom) filter.createdAt.$gte = new Date(dateFrom);
+            if (dateTo) {
+                const end = new Date(dateTo);
+                end.setDate(end.getDate() + 1);
+                filter.createdAt.$lt = end;
+            }
+        } else if (date) {
             const d = new Date(date);
             const next = new Date(d);
             next.setDate(next.getDate() + 1);
@@ -137,10 +158,26 @@ router.patch('/orders/:id/status', async (req, res, next) => {
 // Excel export
 router.get('/orders/export', async (req, res, next) => {
     try {
-        const orders = await Order.find()
+        const { status, branch, search, dateFrom, dateTo } = req.query;
+        const filter = {};
+        if (status) filter.status = status;
+        if (branch) filter.branch = branch;
+        if (dateFrom || dateTo) {
+            filter.createdAt = {};
+            if (dateFrom) filter.createdAt.$gte = new Date(dateFrom);
+            if (dateTo) { const end = new Date(dateTo); end.setDate(end.getDate() + 1); filter.createdAt.$lt = end; }
+        }
+        if (search) {
+            filter.$or = [
+                { orderNumber: new RegExp(search, 'i') },
+                { phone: new RegExp(search, 'i') },
+                { customerName: new RegExp(search, 'i') },
+            ];
+        }
+        const orders = await Order.find(filter)
             .populate('branch', 'number name')
             .sort({ createdAt: -1 })
-            .limit(1000)
+            .limit(5000)
             .lean();
 
         const data = orders.map(o => ({
@@ -151,7 +188,7 @@ router.get('/orders/export', async (req, res, next) => {
             'Summa': o.total,
             'Status': o.status,
             "To'lov": o.paymentMethod,
-            'Sana': o.createdAt?.toISOString().split('T')[0],
+            'Sana': o.createdAt ? new Date(o.createdAt).toLocaleString('ru-RU') : '',
         }));
 
         const ws = XLSX.utils.json_to_sheet(data);
@@ -309,6 +346,26 @@ router.delete('/branches/:id', async (req, res, next) => {
         }
         await Branch.findByIdAndDelete(req.params.id);
         res.json({ message: 'O\'chirildi' });
+    } catch (error) { next(error); }
+});
+
+// Filiallar ma'lumotlarini ommaviy yangilash (admin+)
+router.post('/branches/bulk-update', async (req, res, next) => {
+    try {
+        if (!req.isSuperAdmin && req.adminRole !== 'admin') {
+            return res.status(403).json({ error: 'Ruxsat yo\'q' });
+        }
+        const { items } = req.body; // [{number, address, phone}]
+        if (!Array.isArray(items)) return res.status(400).json({ error: 'items array kerak' });
+        let updated = 0;
+        for (const d of items) {
+            const update = {};
+            if (d.address) update.address = d.address;
+            if (d.phone) update.phone = d.phone;
+            const r = await Branch.updateOne({ number: d.number }, { $set: update });
+            if (r.modifiedCount > 0) updated++;
+        }
+        res.json({ updated, total: items.length });
     } catch (error) { next(error); }
 });
 

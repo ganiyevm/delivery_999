@@ -1,5 +1,33 @@
 const axios = require('axios');
 
+// Locales (bot bilan ulashilgan, lekin backend ham ishlatadi)
+const notify = {
+    uz: {
+        pending_operator: (num) => `⏳ Buyurtma <b>#${num}</b> qabul qilindi!\nApteka tekshirmoqda, biroz kuting...`,
+        confirmed:        (num) => `✅ Buyurtma <b>#${num}</b> tasdiqlandi!\nKuryer tez orada yo'lga chiqadi 🚗`,
+        rejected:         (num) => `😔 Kechirasiz, <b>#${num}</b> rad etildi.\nDori hozir mavjud emas.\nTo'lovingiz 1-3 ish kuni ichida qaytariladi 💰`,
+        on_the_way:       ()    => `🚗 Buyurtmangiz yo'lda!\nKuryer yaqin orada yetkazadi.\nTaxminiy vaqt: 30-60 daqiqa ⏰`,
+        delivered:        (num, bonus) => `🎉 Buyurtma <b>#${num}</b> yetkazildi!\nXarid uchun rahmat! 🙏\n+${bonus} bonus ball hisobingizga yozildi ⭐`,
+        cancelled:        (num) => `❌ Buyurtma <b>#${num}</b> bekor qilindi.\nSavollar bo'lsa aptekaga murojaat qiling.`,
+    },
+    ru: {
+        pending_operator: (num) => `⏳ Заказ <b>#${num}</b> принят!\nАптека проверяет, подождите немного...`,
+        confirmed:        (num) => `✅ Заказ <b>#${num}</b> подтверждён!\nКурьер скоро выедет 🚗`,
+        rejected:         (num) => `😔 К сожалению, заказ <b>#${num}</b> отклонён.\nЛекарство недоступно.\nВозврат — 1-3 рабочих дня 💰`,
+        on_the_way:       ()    => `🚗 Ваш заказ в пути!\nПримерное время доставки: 30-60 минут ⏰`,
+        delivered:        (num, bonus) => `🎉 Заказ <b>#${num}</b> доставлен!\nСпасибо за покупку! 🙏\n+${bonus} бонусных баллов начислено ⭐`,
+        cancelled:        (num) => `❌ Заказ <b>#${num}</b> отменён.\nПо вопросам обращайтесь в аптеку.`,
+    },
+    en: {
+        pending_operator: (num) => `⏳ Order <b>#${num}</b> received!\nThe pharmacy is reviewing it, please wait...`,
+        confirmed:        (num) => `✅ Order <b>#${num}</b> confirmed!\nThe courier will head out soon 🚗`,
+        rejected:         (num) => `😔 Sorry, order <b>#${num}</b> was declined.\nMedicine currently unavailable.\nRefund in 1-3 business days 💰`,
+        on_the_way:       ()    => `🚗 Your order is on its way!\nEstimated delivery: 30-60 minutes ⏰`,
+        delivered:        (num, bonus) => `🎉 Order <b>#${num}</b> delivered!\nThank you for your purchase! 🙏\n+${bonus} bonus points added ⭐`,
+        cancelled:        (num) => `❌ Order <b>#${num}</b> cancelled.\nContact the pharmacy for questions.`,
+    },
+};
+
 class TelegramService {
     constructor() {
         this.botToken = process.env.BOT_TOKEN;
@@ -37,29 +65,30 @@ class TelegramService {
         }
     }
 
-    // Operatorga yangi buyurtma haqida xabar
+    // Operatorga yangi buyurtma haqida xabar (har doim uz tilda)
     async notifyOperator(order, branch) {
         if (!branch?.operatorChatId) return;
 
         const itemsList = order.items.map(i =>
-            `├ ${i.productName} ×${i.qty} — ${i.price.toLocaleString()} сўм`
+            `├ ${i.productName} ×${i.qty} — ${i.price.toLocaleString()} so'm`
         ).join('\n');
 
-        const text = `━━━━━━━━━━━━━━━━━━━━━━━
+        const text =
+`━━━━━━━━━━━━━━━━━━━━━━━
 🆕 YANGI BUYURTMA <b>#${order.orderNumber}</b>
 ━━━━━━━━━━━━━━━━━━━━━━━
 👤 ${order.customerName}
 📞 ${order.phone}
 📍 ${order.address}
 
-💊 ДORILAR:
+💊 DORILAR:
 ${itemsList}
 └─────────────────────────
 
-🚚 Dostavka: ${order.deliveryCost.toLocaleString()} сўм
-💵 ЖAMI: <b>${order.total.toLocaleString()} сўм</b>
+🚚 Yetkazib berish: ${order.deliveryCost.toLocaleString()} so'm
+💵 JAMI: <b>${order.total.toLocaleString()} so'm</b>
 💳 ${order.paymentMethod === 'click' ? 'Click' : 'Payme'} ✅ TO'LANGAN
-🕐 ${new Date().toLocaleTimeString('uz-UZ', { hour: '2-digit', minute: '2-digit' })} | Аптека №${String(branch.number).padStart(3, '0')}
+🕐 ${new Date().toLocaleTimeString('uz-UZ', { hour: '2-digit', minute: '2-digit' })} | Apteka №${String(branch.number).padStart(3, '0')}
 ━━━━━━━━━━━━━━━━━━━━━━━`;
 
         const keyboard = {
@@ -72,26 +101,22 @@ ${itemsList}
         return this.sendMessage(branch.operatorChatId, text, { reply_markup: keyboard });
     }
 
-    // Mijozga bildirishnoma
+    // Mijozga bildirishnoma — foydalanuvchi tiliga qarab
     async notifyUser(telegramId, status, order) {
-        const messages = {
-            pending_operator: `⏳ Buyurtma <b>#${order.orderNumber}</b> qabul qilindi!\nApteka tekshirmoqda, biroz kuting...`,
+        // Foydalanuvchi tilini DB dan olish
+        let lang = 'uz';
+        try {
+            const User = require('../models/User');
+            const user = await User.findOne({ telegramId }).select('language').lean();
+            if (user?.language) lang = user.language;
+        } catch (_) {}
 
-            confirmed: `✅ Buyurtma <b>#${order.orderNumber}</b> tasdiqlandi!\nKuryer tez orada yo'lga chiqadi 🚗`,
+        const loc = notify[lang] || notify.uz;
+        const fn = loc[status];
+        if (!fn) return;
 
-            rejected: `😔 Kechirasiz, <b>#${order.orderNumber}</b> rad etildi.\nSabab: dori hozir mavjud emas.\nTo'lovingiz 1-3 ish kuni ichida qaytariladi 💰`,
-
-            on_the_way: `🚗 Buyurtmangiz yo'lda!\nKuryer yaqin orada yetkazadi.\nTaxminiy vaqt: 30-60 daqiqa ⏰`,
-
-            delivered: `🎉 Buyurtma <b>#${order.orderNumber}</b> yetkazildi!\nXarid uchun rahmat! 🙏\n+${order.bonusEarned || 0} bonus ball hisobingizga yozildi ⭐`,
-
-            cancelled: `❌ Buyurtma <b>#${order.orderNumber}</b> bekor qilindi.\nSavollar bo'lsa: +998 71 XXX-XX-XX`,
-        };
-
-        const text = messages[status];
-        if (text) {
-            return this.sendMessage(telegramId, text);
-        }
+        const text = fn(order.orderNumber, order.bonusEarned || 0);
+        return this.sendMessage(telegramId, text);
     }
 }
 

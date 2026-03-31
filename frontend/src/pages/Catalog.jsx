@@ -1,20 +1,12 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { productsAPI } from '../api/index';
 import ProductCard from '../components/ProductCard';
+import { useT } from '../i18n';
 
-const CATEGORIES = [
-    { key: '', label: 'Barchasi' },
-    { key: 'pain', label: "Og'riq" },
-    { key: 'antibiotics', label: 'Antibiotik' },
-    { key: 'vitamins', label: 'Vitamin' },
-    { key: 'heart', label: 'Yurak' },
-    { key: 'children', label: 'Bolalar' },
-    { key: 'cosmetics', label: 'Kosmetika' },
-    { key: 'devices', label: 'Asboblar' },
-    { key: 'stomach', label: "Me'da" },
-];
+const CATEGORY_KEYS = ['', 'pain', 'antibiotics', 'vitamins', 'heart', 'children', 'cosmetics', 'devices', 'stomach'];
 
 export default function Catalog({ onProduct, initialCategory }) {
+    const { t } = useT();
     const [products, setProducts] = useState([]);
     const [inputValue, setInputValue] = useState('');
     const [search, setSearch] = useState('');
@@ -77,14 +69,14 @@ export default function Catalog({ onProduct, initialCategory }) {
     return (
         <div className="page">
             <div className="back-bar">
-                <h2>💊 Katalog</h2>
+                <h2>💊 {t('catalog')}</h2>
             </div>
 
             <div className="search-bar" style={{ top: 0 }}>
                 <span className="search-icon">🔍</span>
                 <input
                     className="search-input"
-                    placeholder="Dori nomini yozing..."
+                    placeholder={t('searchPlaceholder')}
                     value={inputValue}
                     onChange={handleSearch}
                     autoFocus
@@ -96,10 +88,10 @@ export default function Catalog({ onProduct, initialCategory }) {
 
             {!isSearching && (
                 <div className="chips-scroll">
-                    {CATEGORIES.map(c => (
-                        <button key={c.key} className={`chip ${category === c.key ? 'active' : ''}`}
-                            onClick={() => setCategory(c.key)}>
-                            {c.label}
+                    {CATEGORY_KEYS.map(key => (
+                        <button key={key} className={`chip ${category === key ? 'active' : ''}`}
+                            onClick={() => setCategory(key)}>
+                            {key === '' ? t('allCategories') : t(`cat_${key}`)}
                         </button>
                     ))}
                 </div>
@@ -112,7 +104,7 @@ export default function Catalog({ onProduct, initialCategory }) {
             {products.length === 0 && !loading ? (
                 <div className="empty-state">
                     <div className="icon">🔍</div>
-                    <h3>Topilmadi</h3>
+                    <h3>{t('noProducts')}</h3>
                     <p>Boshqa so'z bilan qidiring</p>
                 </div>
             ) : isSearching ? (

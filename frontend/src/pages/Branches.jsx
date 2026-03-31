@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { branchesAPI } from '../api/index';
+import { useT } from '../i18n';
 
 // ─── URL ochish — faqat HTTPS, Telegram tashqi brauzerda ochadi ───
 function openMapApp(url) {
@@ -14,7 +15,7 @@ const AppIcon = ({ src, alt }) => (
         src={src} alt={alt}
         width={44} height={44}
         style={{ borderRadius: 11, objectFit: 'cover', flexShrink: 0 }}
-        onError={e => { e.target.style.background = '#eee'; }}
+        onError={e => { e.target.style.background = 'var(--border)'; }}
     />
 );
 
@@ -69,11 +70,11 @@ function NavSheet({ branch, onClose }) {
 
     return (
         <div
-            style={{ position: 'fixed', inset: 0, zIndex: 1000, background: 'rgba(0,0,0,0.45)', display: 'flex', alignItems: 'flex-end' }}
+            style={{ position: 'fixed', inset: 0, zIndex: 9999, background: 'rgba(0,0,0,0.65)', display: 'flex', alignItems: 'flex-end' }}
             onClick={onClose}
         >
             <div
-                style={{ width: '100%', background: 'var(--bg-card)', borderRadius: '20px 20px 0 0', paddingBottom: 32, animation: 'slideUp .22s ease' }}
+                style={{ width: '100%', background: 'var(--card)', borderRadius: '20px 20px 0 0', paddingBottom: 32, animation: 'slideUp .22s ease' }}
                 onClick={e => e.stopPropagation()}
             >
                 {/* Handle */}
@@ -81,8 +82,8 @@ function NavSheet({ branch, onClose }) {
 
                 {/* Header */}
                 <div style={{ padding: '14px 20px 10px', borderBottom: '1px solid var(--border)' }}>
-                    <div style={{ fontWeight: 700, fontSize: 15, color: 'var(--text-primary)' }}>{branch.name}</div>
-                    <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginTop: 2 }}>{branch.address || 'Manzil kiritilmagan'}</div>
+                    <div style={{ fontWeight: 700, fontSize: 15, color: 'var(--text)' }}>{branch.name}</div>
+                    <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginTop: 2 }}>{branch.address || '—'}</div>
                 </div>
 
                 {/* Options */}
@@ -98,7 +99,7 @@ function NavSheet({ branch, onClose }) {
                     >
                         {icon}
                         <span style={{ flex: 1, textAlign: 'left' }}>
-                            <div style={{ fontWeight: 600, fontSize: 14, color: 'var(--text-primary)' }}>{label}</div>
+                            <div style={{ fontWeight: 600, fontSize: 14, color: 'var(--text)' }}>{label}</div>
                             <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginTop: 1 }}>{sub}</div>
                         </span>
                         <svg width="8" height="14" viewBox="0 0 8 14" fill="none">
@@ -113,8 +114,8 @@ function NavSheet({ branch, onClose }) {
                     style={{
                         display: 'block', width: 'calc(100% - 40px)', margin: '8px 20px 0',
                         padding: '13px', borderRadius: 14, fontSize: 15, fontWeight: 600,
-                        background: 'var(--bg-secondary)', color: 'var(--text-primary)',
-                        border: 'none', cursor: 'pointer',
+                        background: 'var(--bg)', color: 'var(--text)',
+                        border: '1px solid var(--border)', cursor: 'pointer',
                     }}
                 >
                     Bekor qilish
@@ -125,6 +126,7 @@ function NavSheet({ branch, onClose }) {
 }
 
 export default function Branches() {
+    const { t } = useT();
     const [branches, setBranches] = useState([]);
     const [loading, setLoading] = useState(true);
     const [navBranch, setNavBranch] = useState(null);
@@ -142,49 +144,51 @@ export default function Branches() {
     if (loading) return <div className="loading"><div className="loading-spinner" /></div>;
 
     return (
-        <div className="page">
-            <div className="back-bar"><h2>🏥 Filiallar</h2></div>
+        <>
+            <div className="page">
+                <div className="back-bar"><h2>🏥 Filiallar</h2></div>
 
-            <div style={{ padding: '0 20px 12px', fontSize: 13, color: 'var(--text-secondary)' }}>
-                {branches.length} filial • <span className="text-green">{openCount} ochiq</span> • <span className="text-gray">{closedCount} yopiq</span>
-            </div>
+                <div style={{ padding: '0 20px 12px', fontSize: 13, color: 'var(--text-secondary)' }}>
+                    {branches.length} • <span className="text-green">{openCount} {t('openBranches')}</span> • <span className="text-gray">{closedCount} {t('closedBranches')}</span>
+                </div>
 
-            {branches.map(b => {
-                const hasCoords = b.location?.lat && b.location.lat !== 0;
-                return (
-                    <div key={b._id} className={`branch-card ${b.isOpen ? '' : 'closed'}`}>
-                        <div className="branch-info">
-                            <h4>№{String(b.number).padStart(3, '0')} {b.name}</h4>
-                            <p>📍 {b.address || 'Manzil kiritilmagan'}</p>
-                            {b.phone && <p>📞 {b.phone}</p>}
-                            <p>🕐 {b.hours || '09:00 — 22:00'}</p>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 8 }}>
-                                <span className={`badge ${b.isOpen ? 'badge-instock' : 'badge-outstock'}`}>
-                                    {b.isOpen ? '🟢 Ochiq' : '🔴 Yopiq'}
-                                </span>
-                                {hasCoords && (
-                                    <button
-                                        onClick={() => setNavBranch(b)}
-                                        style={{
-                                            display: 'inline-flex', alignItems: 'center', gap: 6,
-                                            padding: '6px 16px', borderRadius: 20, fontSize: 13, fontWeight: 600,
-                                            background: 'var(--primary)', color: 'white',
-                                            border: 'none', cursor: 'pointer',
-                                        }}
-                                    >
-                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
-                                            <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z" fill="white" />
-                                        </svg>
-                                        Yo'nalish
-                                    </button>
-                                )}
+                {branches.map(b => {
+                    const hasCoords = b.location?.lat && b.location.lat !== 0;
+                    return (
+                        <div key={b._id} className={`branch-card ${b.isOpen ? '' : 'closed'}`}>
+                            <div className="branch-info">
+                                <h4>№{String(b.number).padStart(3, '0')} {b.name}</h4>
+                                <p>📍 {b.address || t('noAddress')}</p>
+                                {b.phone && <p>📞 {b.phone}</p>}
+                                <p>🕐 {b.hours || '09:00 — 22:00'}</p>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 8 }}>
+                                    <span className={`badge ${b.isOpen ? 'badge-instock' : 'badge-outstock'}`}>
+                                        {b.isOpen ? t('openStatus') : t('closedStatus')}
+                                    </span>
+                                    {hasCoords && (
+                                        <button
+                                            onClick={() => setNavBranch(b)}
+                                            style={{
+                                                display: 'inline-flex', alignItems: 'center', gap: 6,
+                                                padding: '6px 16px', borderRadius: 20, fontSize: 13, fontWeight: 600,
+                                                background: 'var(--green)', color: 'white',
+                                                border: 'none', cursor: 'pointer',
+                                            }}
+                                        >
+                                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+                                                <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z" fill="white" />
+                                            </svg>
+                                            {t('navigate')}
+                                        </button>
+                                    )}
+                                </div>
                             </div>
                         </div>
-                    </div>
-                );
-            })}
+                    );
+                })}
+            </div>
 
             {navBranch && <NavSheet branch={navBranch} onClose={() => setNavBranch(null)} />}
-        </div>
+        </>
     );
 }

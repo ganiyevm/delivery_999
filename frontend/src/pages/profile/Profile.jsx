@@ -1,9 +1,10 @@
 import React from 'react';
 import { useAuth } from '../../context/AuthContext';
+import { useT } from '../../i18n';
 
 export default function Profile({ onNavigate }) {
     const { user } = useAuth();
-    const tierLabel = { silver: '🥈 Kumush', gold: '🥇 Oltin', platinum: '💎 Platina' };
+    const { t } = useT();
 
     return (
         <div className="page">
@@ -14,26 +15,26 @@ export default function Profile({ onNavigate }) {
                 <div className="profile-stats">
                     <div className="profile-stat">
                         <div className="value">{user?.totalOrders || 0}</div>
-                        <div className="label">Buyurtma</div>
+                        <div className="label">{t('ordersCount')}</div>
                     </div>
                     <div className="profile-stat">
                         <div className="value">{user?.bonusPoints || 0}</div>
-                        <div className="label">Ball</div>
+                        <div className="label">{t('ballCount')}</div>
                     </div>
                 </div>
             </div>
 
             <div className="profile-menu">
                 {[
-                    { icon: '❤️', text: 'Sevimlilar', key: 'favorites' },
-                    { icon: '📦', text: 'Buyurtmalarim', key: 'orders' },
-                    { icon: '📍', text: 'Manzillarim', key: 'addresses' },
-                    { icon: '⭐', text: `Bonus — ${tierLabel[user?.bonusTier] || 'Kumush'}`, key: 'bonus' },
-                    { icon: '⚙️', text: 'Sozlamalar', key: 'settings' },
+                    { icon: '❤️', labelKey: 'favorites', key: 'favorites' },
+                    { icon: '📦', labelKey: 'myOrders', key: 'orders' },
+                    { icon: '📍', labelKey: 'myAddresses', key: 'addresses' },
+                    { icon: '⭐', labelKey: 'bonusLabel', key: 'bonus', suffix: ` — ${t(user?.bonusTier || 'silver')}` },
+                    { icon: '⚙️', labelKey: 'settings', key: 'settings' },
                 ].map(item => (
                     <div key={item.key} className="profile-menu-item" onClick={() => onNavigate(item.key)}>
                         <span className="icon">{item.icon}</span>
-                        <span className="text">{item.text}</span>
+                        <span className="text">{t(item.labelKey)}{item.suffix || ''}</span>
                         <span className="arrow">›</span>
                     </div>
                 ))}

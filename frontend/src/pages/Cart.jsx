@@ -3,10 +3,12 @@ import { ordersAPI, branchesAPI } from '../api/index';
 import DrugImage from '../components/DrugImages';
 import { useCart } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
+import { useT } from '../i18n';
 
 export default function Cart({ onNavigate, onPayment }) {
     const { items, removeFromCart, updateQty, total } = useCart();
     const { user } = useAuth();
+    const { t } = useT();
     const [deliveryType, setDeliveryType] = useState('delivery');
     const [paymentMethod, setPaymentMethod] = useState('click');
     const [useBonusPoints, setUseBonusPoints] = useState(false);
@@ -66,11 +68,11 @@ export default function Cart({ onNavigate, onPayment }) {
             <div className="page">
                 <div className="empty-state" style={{ paddingTop: 100 }}>
                     <div className="icon">🛒</div>
-                    <h3>Savat bo'sh</h3>
-                    <p>Katalogdan dori tanlang</p>
+                    <h3>{t('cartEmpty')}</h3>
+                    <p>{t('cartEmptyText')}</p>
                     <button className="btn-primary" style={{ maxWidth: 200, margin: '0 auto' }}
                         onClick={() => onNavigate('catalog')}>
-                        Katalogga o'tish
+                        {t('goToCatalog')}
                     </button>
                 </div>
             </div>
@@ -130,7 +132,7 @@ export default function Cart({ onNavigate, onPayment }) {
 
     return (
         <div className="page" style={{ paddingBottom: 100 }}>
-            <div className="back-bar"><h2>🛒 Savat</h2></div>
+            <div className="back-bar"><h2>🛒 {t('cart')}</h2></div>
 
             <div className="section">
                 {items.map(item => (
@@ -153,16 +155,16 @@ export default function Cart({ onNavigate, onPayment }) {
             </div>
 
             <div className="section">
-                <h3 className="section-title" style={{ padding: 0 }}>Yetkazib berish</h3>
+                <h3 className="section-title" style={{ padding: 0 }}>{t('delivery')}</h3>
                 <div className="toggle-group">
                     <button className={`toggle-btn ${deliveryType === 'delivery' ? 'active' : ''}`}
-                        onClick={() => setDeliveryType('delivery')}>🚚 Dostavka</button>
+                        onClick={() => setDeliveryType('delivery')}>🚚 {t('delivery')}</button>
                     <button className={`toggle-btn ${deliveryType === 'pickup' ? 'active' : ''}`}
-                        onClick={() => setDeliveryType('pickup')}>🏪 Olib ketish</button>
+                        onClick={() => setDeliveryType('pickup')}>🏪 {t('pickup')}</button>
                 </div>
 
                 <div className="form-group">
-                    <label className="form-label">Filial</label>
+                    <label className="form-label">{t('branch')}</label>
                     <select className="form-input" value={selectedBranch} onChange={e => setSelectedBranch(e.target.value)}>
                         {branches.map(b => (
                             <option key={b._id} value={b._id}>№{String(b.number).padStart(3, '0')} {b.name}</option>
@@ -171,18 +173,18 @@ export default function Cart({ onNavigate, onPayment }) {
                 </div>
 
                 <div className="form-group">
-                    <label className="form-label">Ism</label>
-                    <input className="form-input" value={name} onChange={e => setName(e.target.value)} placeholder="Ismingiz" />
+                    <label className="form-label">{t('yourName')}</label>
+                    <input className="form-input" value={name} onChange={e => setName(e.target.value)} placeholder={t('yourName')} />
                 </div>
 
                 <div className="form-group">
-                    <label className="form-label">Telefon</label>
+                    <label className="form-label">{t('yourPhone')}</label>
                     <input className="form-input" value={phone} onChange={e => setPhone(e.target.value)} placeholder="+998 90 123-45-67" />
                 </div>
 
                 {deliveryType === 'delivery' && (
                     <div className="form-group">
-                        <label className="form-label">Manzil</label>
+                        <label className="form-label">{t('yourAddress')}</label>
                         <div style={{ display: 'flex', gap: 8, alignItems: 'flex-start' }}>
                             <textarea className="form-textarea" style={{ flex: 1 }} value={address}
                                 onChange={e => setAddress(e.target.value)}
@@ -214,15 +216,15 @@ export default function Cart({ onNavigate, onPayment }) {
                 )}
 
                 <div className="form-group">
-                    <label className="form-label">Izoh (ixtiyoriy)</label>
+                    <label className="form-label">{t('comment')}</label>
                     <textarea className="form-textarea" value={comment}
                         onChange={e => setComment(e.target.value)}
-                        placeholder="Kuryer uchun eslatma, qavat, podezd..." />
+                        placeholder={t('comment')} />
                 </div>
             </div>
 
             <div className="section">
-                <h3 className="section-title" style={{ padding: 0 }}>To'lov usuli</h3>
+                <h3 className="section-title" style={{ padding: 0 }}>{t('paymentTitle')}</h3>
                 <div className="toggle-group">
                     <button className={`toggle-btn ${paymentMethod === 'click' ? 'active' : ''}`}
                         onClick={() => setPaymentMethod('click')}>💳 Click</button>
@@ -233,7 +235,7 @@ export default function Cart({ onNavigate, onPayment }) {
                 {user?.bonusPoints > 0 && (
                     <div className="setting-row" style={{ margin: 0 }}>
                         <div>
-                            <div style={{ fontWeight: 700, fontSize: 14 }}>Bonus ball ishlatish</div>
+                            <div style={{ fontWeight: 700, fontSize: 14 }}>{t('useBonus')}</div>
                             <div style={{ fontSize: 12, color: 'var(--text-secondary)' }}>
                                 {user.bonusPoints.toLocaleString()} ball mavjud
                             </div>
@@ -251,9 +253,9 @@ export default function Cart({ onNavigate, onPayment }) {
                         <span>{total.toLocaleString()} сўм</span>
                     </div>
                     <div className="summary-row">
-                        <span>Dostavka</span>
+                        <span>{t('deliveryCost')}</span>
                         {deliveryCost === 0 ? (
-                            <span className="free">Bepul 🎉</span>
+                            <span className="free">{t('free')} 🎉</span>
                         ) : (
                             <span>{deliveryCost.toLocaleString()} сўм</span>
                         )}
@@ -271,7 +273,7 @@ export default function Cart({ onNavigate, onPayment }) {
                 </div>
 
                 <button className="btn-primary" onClick={handleSubmit} disabled={submitting}>
-                    {submitting ? '⏳ Kutilmoqda...' : `Buyurtma berish • ${grandTotal.toLocaleString()} сўм`}
+                    {submitting ? `⏳ ${t('ordering')}` : `${t('placeOrder')} • ${grandTotal.toLocaleString()} сўм`}
                 </button>
             </div>
         </div>

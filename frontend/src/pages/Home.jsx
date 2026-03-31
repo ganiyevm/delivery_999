@@ -4,21 +4,23 @@ import ProductCard from '../components/ProductCard';
 import DrugImage from '../components/DrugImages';
 import { useAuth } from '../context/AuthContext';
 import { useCart } from '../context/CartContext';
+import { useT } from '../i18n';
 
-const CATEGORIES = [
-    { key: 'pain', icon: '💊', name: "Og'riq" },
-    { key: 'antibiotics', icon: '🦠', name: 'Antibiotik' },
-    { key: 'vitamins', icon: '🌟', name: 'Vitamin' },
-    { key: 'heart', icon: '❤️', name: 'Yurak' },
-    { key: 'children', icon: '👶', name: 'Bolalar' },
-    { key: 'cosmetics', icon: '💄', name: 'Kosmetika' },
-    { key: 'devices', icon: '🩺', name: 'Asboblar' },
-    { key: 'stomach', icon: '🫀', name: "Me'da" },
+const CATEGORY_ICONS = [
+    { key: 'pain', icon: '💊' },
+    { key: 'antibiotics', icon: '🦠' },
+    { key: 'vitamins', icon: '🌟' },
+    { key: 'heart', icon: '❤️' },
+    { key: 'children', icon: '👶' },
+    { key: 'cosmetics', icon: '💄' },
+    { key: 'devices', icon: '🩺' },
+    { key: 'stomach', icon: '🫀' },
 ];
 
 export default function Home({ onNavigate, onProduct, onScanner }) {
     const { user } = useAuth();
     const { count } = useCart();
+    const { t } = useT();
     const [popular, setPopular] = useState([]);
     const [branchCount, setBranchCount] = useState(20);
 
@@ -32,7 +34,6 @@ export default function Home({ onNavigate, onProduct, onScanner }) {
     }, []);
 
     const bonusProgress = user ? Math.min((user.bonusPoints || 0) / 50, 100) : 0;
-    const tierLabel = { silver: '🥈 Kumush', gold: '🥇 Oltin', platinum: '💎 Platina' };
 
     return (
         <div className="page">
@@ -54,13 +55,13 @@ export default function Home({ onNavigate, onProduct, onScanner }) {
             {/* Search */}
             <div className="search-bar" onClick={() => onNavigate('catalog')}>
                 <span className="search-icon">🔍</span>
-                <input className="search-input" placeholder="Dori, tarkib yoki analog..." readOnly />
+                <input className="search-input" placeholder={t('searchPlaceholder')} readOnly />
             </div>
 
             {/* Promo */}
             <div className="promo-banner fade-up">
-                <h2>🎉 Birinchi buyurtmada</h2>
-                <p>Bepul yetkazib berish + 500 bonus ball!</p>
+                <h2>{t('promoTitle')}</h2>
+                <p>{t('promoText')}</p>
             </div>
 
             {/* Stats */}
@@ -68,26 +69,26 @@ export default function Home({ onNavigate, onProduct, onScanner }) {
                 <div className="stat-card">
                     <div className="icon">🏥</div>
                     <div className="value">{branchCount}</div>
-                    <div className="label">Filial</div>
+                    <div className="label">{t('branchStat')}</div>
                 </div>
                 <div className="stat-card">
                     <div className="icon">💊</div>
                     <div className="value">4000+</div>
-                    <div className="label">Dori</div>
+                    <div className="label">{t('medicineStat')}</div>
                 </div>
                 <div className="stat-card">
                     <div className="icon">🚚</div>
                     <div className="value">1-2</div>
-                    <div className="label">soat</div>
+                    <div className="label">{t('hourStat')}</div>
                 </div>
             </div>
 
             {/* Bonus */}
             {user && (
                 <div className="bonus-card fade-up" onClick={() => onNavigate('bonus')}>
-                    <div className="tier">{tierLabel[user.bonusTier] || '🥈 Kumush'}</div>
+                    <div className="tier">{t(user.bonusTier)}</div>
                     <div className="points">{(user.bonusPoints || 0).toLocaleString()}</div>
-                    <div className="points-label">bonus ball</div>
+                    <div className="points-label">{t('bonusPoints')}</div>
                     <div className="bonus-progress">
                         <div className="bonus-progress-fill" style={{ width: `${bonusProgress}%` }} />
                     </div>
@@ -95,18 +96,18 @@ export default function Home({ onNavigate, onProduct, onScanner }) {
             )}
 
             {/* Categories */}
-            <h3 className="section-title">Kategoriyalar</h3>
+            <h3 className="section-title">{t('categoriesTitle')}</h3>
             <div className="categories-grid fade-up">
-                {CATEGORIES.map(cat => (
+                {CATEGORY_ICONS.map(cat => (
                     <div key={cat.key} className="category-item" onClick={() => onNavigate('catalog', { category: cat.key })}>
                         <div className="icon">{cat.icon}</div>
-                        <div className="name">{cat.name}</div>
+                        <div className="name">{t(`cat_${cat.key}`)}</div>
                     </div>
                 ))}
             </div>
 
             {/* Popular */}
-            <h3 className="section-title">Ommabop dorilar</h3>
+            <h3 className="section-title">{t('popularTitle')}</h3>
             <div className="products-grid fade-up">
                 {popular.map(p => (
                     <ProductCard key={p._id} product={p} onClick={onProduct} />
@@ -114,28 +115,28 @@ export default function Home({ onNavigate, onProduct, onScanner }) {
             </div>
 
             {/* Delivery info */}
-            <h3 className="section-title">Yetkazib berish</h3>
+            <h3 className="section-title">{t('deliveryTitle')}</h3>
             <div className="delivery-info fade-up">
                 <div className="delivery-info-grid">
                     <div className="delivery-info-item">
                         <div className="icon">💰</div>
                         <div className="text">Min 50,000 сўм</div>
-                        <div className="sub">Minimal buyurtma</div>
+                        <div className="sub">{t('minOrder')}</div>
                     </div>
                     <div className="delivery-info-item">
                         <div className="icon">🚚</div>
-                        <div className="text">1-2 soat</div>
-                        <div className="sub">Yetkazib berish</div>
+                        <div className="text">1-2 {t('hourStat')}</div>
+                        <div className="sub">{t('deliveryTime')}</div>
                     </div>
                     <div className="delivery-info-item">
                         <div className="icon">💳</div>
                         <div className="text">Payme / Click</div>
-                        <div className="sub">To'lov usuli</div>
+                        <div className="sub">{t('paymentMethod')}</div>
                     </div>
                     <div className="delivery-info-item">
                         <div className="icon">🕐</div>
                         <div className="text">09:00 — 22:00</div>
-                        <div className="sub">Ish vaqti</div>
+                        <div className="sub">{t('workHours')}</div>
                     </div>
                 </div>
             </div>
