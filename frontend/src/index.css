@@ -1132,3 +1132,9 @@ body {
 .gap-8 { gap: 8px; }
 .flex { display: flex; }
 .flex-between { display: flex; justify-content: space-between; align-items: center; }
+
+@keyframes scanLine {
+  0%   { top: 17.5%; opacity: 1; }
+  50%  { top: 82.5%; opacity: 1; }
+  100% { top: 17.5%; opacity: 1; }
+}
