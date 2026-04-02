@@ -113,13 +113,20 @@ app.get('/admin/*', (req, res) => {
 // ─── Frontend static (Mini App) ───
 const frontendDist = path.join(__dirname, '../frontend/dist');
 app.use(express.static(frontendDist, {
-    setHeaders: (res) => {
+    setHeaders: (res, filePath) => {
         // Telegram Mini App uchun frame ruxsati
         res.removeHeader('X-Frame-Options');
+        // index.html ni cache qilmaslik — Telegram WebApp cache muammosini hal qiladi
+        if (filePath.endsWith('index.html')) {
+            res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+            res.setHeader('Pragma', 'no-cache');
+            res.setHeader('Expires', '0');
+        }
     },
 }));
 // SPA fallback — barcha noma'lum yo'llar index.html ga
 app.get('*', (req, res) => {
+    res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
     res.sendFile(path.join(frontendDist, 'index.html'));
 });
 
