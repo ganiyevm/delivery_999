@@ -15,6 +15,7 @@ export const branchesAPI = {
     getAll: () => api.get('/branches'),
     getById: (id) => api.get(`/branches/${id}`),
     getProducts: (id, params) => api.get(`/branches/${id}/products`, { params }),
+    checkStock: (items) => api.post('/branches/check-stock', { items }),
 };
 
 export const ordersAPI = {

@@ -77,4 +77,45 @@ router.get('/:id/products', async (req, res, next) => {
     }
 });
 
+// ─── Savat mahsulotlari bor filiallarni tekshirish ───
+// POST /api/branches/check-stock
+// Body: { items: [{ productId, qty }] }
+// Qaytaradi: { availableBranchIds: [...] }
+router.post('/check-stock', async (req, res, next) => {
+    try {
+        const { items } = req.body;
+        if (!items?.length) return res.json({ availableBranchIds: [] });
+
+        // Barcha ochiq filiallar
+        const branches = await Branch.find({ isActive: true }).select('_id').lean();
+        const branchIds = branches.map(b => b._id);
+
+        // Har bir mahsulot uchun stock ni topish
+        const productIds = items.map(i => i.productId);
+        const stocks = await Stock.find({
+            product: { $in: productIds },
+            branch:  { $in: branchIds },
+        }).select('product branch qty').lean();
+
+        // branch → product → qty mapping
+        const map = {}; // map[branchId][productId] = qty
+        stocks.forEach(s => {
+            const bid = s.branch.toString();
+            const pid = s.product.toString();
+            if (!map[bid]) map[bid] = {};
+            map[bid][pid] = s.qty;
+        });
+
+        // Har bir filialda hamma mahsulot yetarlimi?
+        const availableBranchIds = branchIds.filter(bid => {
+            const branchStock = map[bid.toString()] || {};
+            return items.every(item =>
+                (branchStock[item.productId] || 0) >= item.qty
+            );
+        });
+
+        res.json({ availableBranchIds: availableBranchIds.map(id => id.toString()) });
+    } catch (error) { next(error); }
+});
+
 module.exports = router;

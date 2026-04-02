@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import { createContext, useContext, useState, useEffect, useRef } from 'react';
 
 const CartContext = createContext(null);
 
@@ -8,17 +8,25 @@ export function CartProvider({ children }) {
             return JSON.parse(localStorage.getItem('cart') || '[]');
         } catch { return []; }
     });
+    const [toast, setToast] = useState(null); // { name, qty }
+    const toastTimer = useRef(null);
 
     useEffect(() => {
         localStorage.setItem('cart', JSON.stringify(items));
     }, [items]);
 
+    const showToast = (name) => {
+        if (toastTimer.current) clearTimeout(toastTimer.current);
+        setToast({ name });
+        toastTimer.current = setTimeout(() => setToast(null), 2200);
+    };
+
     const addToCart = (product, branchId) => {
         setItems(prev => {
-            const existing = prev.find(i => i.productId === product._id && i.branchId === branchId);
+            const existing = prev.find(i => i.productId === product._id);
             if (existing) {
                 return prev.map(i =>
-                    i.productId === product._id && i.branchId === branchId
+                    i.productId === product._id
                         ? { ...i, qty: i.qty + 1 }
                         : i
                 );
@@ -33,6 +41,7 @@ export function CartProvider({ children }) {
                 branchId,
             }];
         });
+        showToast(product.name);
     };
 
     const removeFromCart = (productId) => {
@@ -53,7 +62,7 @@ export function CartProvider({ children }) {
 
     return (
         <CartContext.Provider value={{
-            items, addToCart, removeFromCart, updateQty, clearCart, count, total,
+            items, addToCart, removeFromCart, updateQty, clearCart, count, total, toast,
         }}>
             {children}
         </CartContext.Provider>

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { ordersAPI, branchesAPI } from '../api/index';
 import DrugImage from '../components/DrugImages';
 import { useCart } from '../context/CartContext';
@@ -18,6 +18,7 @@ export default function Cart({ onNavigate, onPayment }) {
     const [comment, setComment] = useState('');
     const [geoLoading, setGeoLoading] = useState(false);
     const [branches, setBranches] = useState([]);
+    const [availableBranchIds, setAvailableBranchIds] = useState(null); // null = yuklanmagan
     const [selectedBranch, setSelectedBranch] = useState('');
     const [submitting, setSubmitting] = useState(false);
 
@@ -55,13 +56,30 @@ export default function Cart({ onNavigate, onPayment }) {
         );
     };
 
+    // Barcha ochiq filiallarni yuklash
     useEffect(() => {
         branchesAPI.getAll().then(res => {
-            const open = (res.data || []).filter(b => b.isOpen);
-            setBranches(open);
-            if (open.length > 0) setSelectedBranch(open[0]._id);
+            setBranches((res.data || []).filter(b => b.isOpen));
         }).catch(() => { });
     }, []);
+
+    // Savat o'zgarganda — qaysi filiallarda mahsulot borligini tekshirish
+    useEffect(() => {
+        if (!items.length) return;
+        branchesAPI.checkStock(items.map(i => ({ productId: i.productId, qty: i.qty })))
+            .then(res => {
+                const ids = res.data?.availableBranchIds || [];
+                setAvailableBranchIds(ids);
+                // Hozirgi tanlangan filial mavjud bo'lmasa — birinchi mavjudga o'tish
+                setSelectedBranch(prev => ids.includes(prev) ? prev : (ids[0] || ''));
+            })
+            .catch(() => setAvailableBranchIds(null));
+    }, [items]);
+
+    // Filtrlanagan filiallar ro'yxati
+    const filteredBranches = availableBranchIds === null
+        ? branches  // hali tekshirilmagan — hammasini ko'rsat
+        : branches.filter(b => availableBranchIds.includes(b._id));
 
     if (items.length === 0) {
         return (
@@ -165,11 +183,29 @@ export default function Cart({ onNavigate, onPayment }) {
 
                 <div className="form-group">
                     <label className="form-label">{t('branch')}</label>
-                    <select className="form-input" value={selectedBranch} onChange={e => setSelectedBranch(e.target.value)}>
-                        {branches.map(b => (
-                            <option key={b._id} value={b._id}>№{String(b.number).padStart(3, '0')} {b.name}</option>
-                        ))}
-                    </select>
+                    {availableBranchIds !== null && filteredBranches.length === 0 ? (
+                        <div style={{
+                            padding: '12px 14px', borderRadius: 12,
+                            background: 'rgba(231,76,60,0.08)', border: '1px solid rgba(231,76,60,0.2)',
+                            color: 'var(--red)', fontSize: 13, fontWeight: 600,
+                        }}>
+                            ⚠️ Hozircha bu mahsulotlar mavjud filial topilmadi
+                        </div>
+                    ) : (
+                        <select className="form-input" value={selectedBranch} onChange={e => setSelectedBranch(e.target.value)}>
+                            {filteredBranches.map(b => (
+                                <option key={b._id} value={b._id}>
+                                    №{String(b.number).padStart(3, '0')} {b.name}
+                                </option>
+                            ))}
+                        </select>
+                    )}
+                    {availableBranchIds !== null && (
+                        <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginTop: 4 }}>
+                            ✅ Faqat savatdagi dorisi bor filiallar ko'rsatilmoqda
+                            {' '}({filteredBranches.length} ta)
+                        </div>
+                    )}
                 </div>
 
                 <div className="form-group">

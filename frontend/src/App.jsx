@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { AuthProvider, useAuth } from './context/AuthContext';
-import { CartProvider } from './context/CartContext';
+import { CartProvider, useCart } from './context/CartContext';
 import BottomNav from './components/BottomNav';
 import Home from './pages/Home';
 import Catalog from './pages/Catalog';
@@ -15,6 +15,59 @@ import Addresses from './pages/profile/Addresses';
 import Bonus from './pages/profile/Bonus';
 import Settings from './pages/profile/Settings';
 import Scanner from './pages/Scanner';
+
+/* ── Toast: mahsulot qo'shildi xabarnomasi ─────────────────────── */
+function CartToast() {
+    const { toast } = useCart();
+    if (!toast) return null;
+    return (
+        <div style={{
+            position: 'fixed', top: 16, left: '50%', transform: 'translateX(-50%)',
+            zIndex: 9999, background: 'var(--green)', color: '#fff',
+            padding: '10px 20px', borderRadius: 24,
+            fontSize: 13, fontWeight: 700,
+            boxShadow: '0 4px 20px rgba(39,174,96,0.4)',
+            display: 'flex', alignItems: 'center', gap: 8,
+            animation: 'toastIn 0.25s ease',
+            maxWidth: 'calc(100vw - 32px)', whiteSpace: 'nowrap',
+            overflow: 'hidden', textOverflow: 'ellipsis',
+        }}>
+            🛒 Savatga qo'shildi
+        </div>
+    );
+}
+
+/* ── Float cart bar: savat to'ldirilganda pastda ko'rinadi ─────── */
+function FloatCartBar({ page, onNavigate }) {
+    const { count, total } = useCart();
+    const hide = count === 0 || ['cart', 'payment', 'productDetail'].includes(page);
+    if (hide) return null;
+    return (
+        <button
+            onClick={() => onNavigate('cart')}
+            style={{
+                position: 'fixed', bottom: 72, left: 16, right: 16,
+                zIndex: 900, border: 'none', cursor: 'pointer',
+                background: 'var(--green)',
+                borderRadius: 16, padding: '13px 20px',
+                display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                boxShadow: '0 4px 24px rgba(39,174,96,0.45)',
+                animation: 'toastIn 0.2s ease',
+            }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <span style={{
+                    background: 'rgba(255,255,255,0.25)', borderRadius: 20,
+                    width: 26, height: 26, display: 'flex', alignItems: 'center',
+                    justifyContent: 'center', fontWeight: 800, fontSize: 13, color: '#fff',
+                }}>{count}</span>
+                <span style={{ color: '#fff', fontWeight: 700, fontSize: 14 }}>Savatni ko'rish</span>
+            </div>
+            <span style={{ color: '#fff', fontWeight: 800, fontSize: 15 }}>
+                {total.toLocaleString()} сўм
+            </span>
+        </button>
+    );
+}
 
 function AppContent() {
     const [page, setPage] = useState('home');
@@ -83,6 +136,7 @@ function AppContent() {
 
     return (
         <>
+            <CartToast />
             {page === 'home' && <Home onNavigate={navigate} onProduct={openProduct} onScanner={() => navigate('scanner')} />}
             {page === 'catalog' && <Catalog onProduct={openProduct} initialCategory={catalogCategory} />}
             {page === 'productDetail' && <ProductDetail productId={productId} onBack={() => setPage('catalog')} />}
@@ -97,6 +151,7 @@ function AppContent() {
             {page === 'settings' && <Settings onBack={() => setPage('profile')} />}
             {page === 'scanner' && <Scanner onBack={() => setPage('home')} />}
             {showNav && <BottomNav active={page} onNavigate={navigate} />}
+            <FloatCartBar page={page} onNavigate={navigate} />
         </>
     );
 }
