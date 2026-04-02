@@ -114,7 +114,19 @@ router.post('/check-stock', async (req, res, next) => {
             );
         });
 
-        res.json({ availableBranchIds: availableBranchIds.map(id => id.toString()) });
+        // Hech qaysi filialda yetarli bo'lmagan mahsulotlar
+        const unavailableProductIds = items
+            .filter(item =>
+                branchIds.every(bid =>
+                    (map[bid.toString()]?.[item.productId] || 0) < item.qty
+                )
+            )
+            .map(item => item.productId);
+
+        res.json({
+            availableBranchIds: availableBranchIds.map(id => id.toString()),
+            unavailableProductIds,
+        });
     } catch (error) { next(error); }
 });
 

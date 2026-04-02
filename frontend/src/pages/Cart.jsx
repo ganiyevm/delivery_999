@@ -18,7 +18,8 @@ export default function Cart({ onNavigate, onPayment }) {
     const [comment, setComment] = useState('');
     const [geoLoading, setGeoLoading] = useState(false);
     const [branches, setBranches] = useState([]);
-    const [availableBranchIds, setAvailableBranchIds] = useState(null); // null = yuklanmagan
+    const [availableBranchIds, setAvailableBranchIds] = useState(null);
+    const [unavailableProductIds, setUnavailableProductIds] = useState([]);
     const [selectedBranch, setSelectedBranch] = useState('');
     const [submitting, setSubmitting] = useState(false);
 
@@ -70,10 +71,10 @@ export default function Cart({ onNavigate, onPayment }) {
             .then(res => {
                 const ids = res.data?.availableBranchIds || [];
                 setAvailableBranchIds(ids);
-                // Hozirgi tanlangan filial mavjud bo'lmasa — birinchi mavjudga o'tish
+                setUnavailableProductIds(res.data?.unavailableProductIds || []);
                 setSelectedBranch(prev => ids.includes(prev) ? prev : (ids[0] || ''));
             })
-            .catch(() => setAvailableBranchIds(null));
+            .catch(() => { setAvailableBranchIds(null); setUnavailableProductIds([]); });
     }, [items]);
 
     // Filtrlanagan filiallar ro'yxati
@@ -187,9 +188,31 @@ export default function Cart({ onNavigate, onPayment }) {
                         <div style={{
                             padding: '12px 14px', borderRadius: 12,
                             background: 'rgba(231,76,60,0.08)', border: '1px solid rgba(231,76,60,0.2)',
-                            color: 'var(--red)', fontSize: 13, fontWeight: 600,
+                            color: 'var(--red)', fontSize: 13,
                         }}>
-                            ⚠️ Hozircha bu mahsulotlar mavjud filial topilmadi
+                            <div style={{ fontWeight: 700, marginBottom: unavailableProductIds.length ? 8 : 0 }}>
+                                ⚠️ Savatdagi barcha dorisi bor filial topilmadi
+                            </div>
+                            {unavailableProductIds.length > 0 && (
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                                    <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginBottom: 2 }}>
+                                        Hech qaysi filialda yetarli bo'lmagan dorlar:
+                                    </div>
+                                    {items
+                                        .filter(i => unavailableProductIds.includes(i.productId))
+                                        .map(i => (
+                                            <div key={i.productId} style={{
+                                                display: 'flex', alignItems: 'center',
+                                                gap: 6, fontSize: 12, fontWeight: 600,
+                                            }}>
+                                                <span style={{ color: 'var(--red)' }}>✕</span>
+                                                <span style={{ color: 'var(--text)' }}>{i.name}</span>
+                                                <span style={{ color: 'var(--text-secondary)' }}>× {i.qty}</span>
+                                            </div>
+                                        ))
+                                    }
+                                </div>
+                            )}
                         </div>
                     ) : (
                         <select className="form-input" value={selectedBranch} onChange={e => setSelectedBranch(e.target.value)}>

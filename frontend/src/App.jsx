@@ -132,7 +132,7 @@ function AppContent() {
         );
     }
 
-    const showNav = !['productDetail', 'payment', 'favorites', 'orders', 'addresses', 'bonus', 'settings', 'scanner'].includes(page);
+    const showNav = !['payment', 'favorites', 'orders', 'addresses', 'bonus', 'settings', 'scanner'].includes(page);
 
     return (
         <>
