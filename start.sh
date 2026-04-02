@@ -7,7 +7,7 @@ mkdir -p /app/uploads
 # Frontend build (agar dist yo'q bo'lsa)
 if [ ! -f /app/frontend/dist/index.html ]; then
   echo "Frontend build qilinmoqda..."
-  cd /app/frontend && npm ci && npm run build
+  cd /app/frontend && npm ci --legacy-peer-deps && npm run build
   cd /app
 fi
 
