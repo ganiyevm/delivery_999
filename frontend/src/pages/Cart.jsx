@@ -19,7 +19,7 @@ export default function Cart({ onNavigate, onPayment }) {
     const [geoLoading, setGeoLoading] = useState(false);
     const [branches, setBranches] = useState([]);
     const [availableBranchIds, setAvailableBranchIds] = useState(null);
-    const [unavailableProductIds, setUnavailableProductIds] = useState([]);
+    const [productStatus, setProductStatus] = useState([]); // [{productId, maxAvailableQty, availableAnywhere}]
     const [selectedBranch, setSelectedBranch] = useState('');
     const [submitting, setSubmitting] = useState(false);
 
@@ -71,10 +71,10 @@ export default function Cart({ onNavigate, onPayment }) {
             .then(res => {
                 const ids = res.data?.availableBranchIds || [];
                 setAvailableBranchIds(ids);
-                setUnavailableProductIds(res.data?.unavailableProductIds || []);
+                setProductStatus(res.data?.productStatus || []);
                 setSelectedBranch(prev => ids.includes(prev) ? prev : (ids[0] || ''));
             })
-            .catch(() => { setAvailableBranchIds(null); setUnavailableProductIds([]); });
+            .catch(() => { setAvailableBranchIds(null); setProductStatus([]); });
     }, [items]);
 
     // Filtrlanagan filiallar ro'yxati
@@ -186,33 +186,53 @@ export default function Cart({ onNavigate, onPayment }) {
                     <label className="form-label">{t('branch')}</label>
                     {availableBranchIds !== null && filteredBranches.length === 0 ? (
                         <div style={{
-                            padding: '12px 14px', borderRadius: 12,
-                            background: 'rgba(231,76,60,0.08)', border: '1px solid rgba(231,76,60,0.2)',
-                            color: 'var(--red)', fontSize: 13,
+                            padding: '14px', borderRadius: 12,
+                            background: 'rgba(231,76,60,0.07)', border: '1px solid rgba(231,76,60,0.25)',
+                            fontSize: 13, display: 'flex', flexDirection: 'column', gap: 10,
                         }}>
-                            <div style={{ fontWeight: 700, marginBottom: unavailableProductIds.length ? 8 : 0 }}>
-                                ⚠️ Savatdagi barcha dorisi bor filial topilmadi
+                            <div style={{ fontWeight: 700, color: 'var(--red)' }}>
+                                ⚠️ Hammasini birga topuvchi filial yo'q
                             </div>
-                            {unavailableProductIds.length > 0 && (
-                                <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                                    <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginBottom: 2 }}>
-                                        Hech qaysi filialda yetarli bo'lmagan dorlar:
-                                    </div>
-                                    {items
-                                        .filter(i => unavailableProductIds.includes(i.productId))
-                                        .map(i => (
-                                            <div key={i.productId} style={{
-                                                display: 'flex', alignItems: 'center',
-                                                gap: 6, fontSize: 12, fontWeight: 600,
-                                            }}>
-                                                <span style={{ color: 'var(--red)' }}>✕</span>
-                                                <span style={{ color: 'var(--text)' }}>{i.name}</span>
-                                                <span style={{ color: 'var(--text-secondary)' }}>× {i.qty}</span>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
+                                {items.map(item => {
+                                    const st = productStatus.find(s => s.productId === item.productId);
+                                    const ok = st?.availableAnywhere;
+                                    const max = st?.maxAvailableQty ?? 0;
+                                    return (
+                                        <div key={item.productId} style={{
+                                            display: 'flex', alignItems: 'flex-start',
+                                            gap: 8, padding: '8px 10px', borderRadius: 10,
+                                            background: ok ? 'rgba(39,174,96,0.07)' : 'rgba(231,76,60,0.07)',
+                                        }}>
+                                            <span style={{ fontSize: 15, flexShrink: 0 }}>{ok ? '⚠️' : '❌'}</span>
+                                            <div style={{ flex: 1, minWidth: 0 }}>
+                                                <div style={{
+                                                    fontWeight: 600, color: 'var(--text)',
+                                                    fontSize: 12, lineHeight: 1.4,
+                                                    overflow: 'hidden', textOverflow: 'ellipsis',
+                                                    whiteSpace: 'nowrap',
+                                                }}>{item.name}</div>
+                                                <div style={{ fontSize: 11, marginTop: 2 }}>
+                                                    {ok ? (
+                                                        <span style={{ color: '#F39C12' }}>
+                                                            Kerak: {item.qty} ta · Mavjud (boshqa filialda): {max} ta
+                                                        </span>
+                                                    ) : (
+                                                        <span style={{ color: 'var(--red)' }}>
+                                                            {max > 0
+                                                                ? `Kerak: ${item.qty} ta · Maksimum mavjud: ${max} ta`
+                                                                : 'Hech qaysi filialda yo\'q'}
+                                                        </span>
+                                                    )}
+                                                </div>
                                             </div>
-                                        ))
-                                    }
-                                </div>
-                            )}
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                            <div style={{ fontSize: 11, color: 'var(--text-secondary)', lineHeight: 1.5 }}>
+                                💡 Miqdorni kamaytiring yoki ba'zi dorlarni olib tashlang
+                            </div>
                         </div>
                     ) : (
                         <select className="form-input" value={selectedBranch} onChange={e => setSelectedBranch(e.target.value)}>

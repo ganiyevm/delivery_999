@@ -78,27 +78,22 @@ router.get('/:id/products', async (req, res, next) => {
 });
 
 // ─── Savat mahsulotlari bor filiallarni tekshirish ───
-// POST /api/branches/check-stock
-// Body: { items: [{ productId, qty }] }
-// Qaytaradi: { availableBranchIds: [...] }
 router.post('/check-stock', async (req, res, next) => {
     try {
         const { items } = req.body;
-        if (!items?.length) return res.json({ availableBranchIds: [] });
+        if (!items?.length) return res.json({ availableBranchIds: [], productStatus: [] });
 
-        // Barcha ochiq filiallar
         const branches = await Branch.find({ isActive: true }).select('_id').lean();
         const branchIds = branches.map(b => b._id);
 
-        // Har bir mahsulot uchun stock ni topish
         const productIds = items.map(i => i.productId);
         const stocks = await Stock.find({
             product: { $in: productIds },
             branch:  { $in: branchIds },
         }).select('product branch qty').lean();
 
-        // branch → product → qty mapping
-        const map = {}; // map[branchId][productId] = qty
+        // map[branchId][productId] = qty
+        const map = {};
         stocks.forEach(s => {
             const bid = s.branch.toString();
             const pid = s.product.toString();
@@ -106,27 +101,28 @@ router.post('/check-stock', async (req, res, next) => {
             map[bid][pid] = s.qty;
         });
 
-        // Har bir filialda hamma mahsulot yetarlimi?
+        // Barcha mahsulot bor filiallar
         const availableBranchIds = branchIds.filter(bid => {
-            const branchStock = map[bid.toString()] || {};
-            return items.every(item =>
-                (branchStock[item.productId] || 0) >= item.qty
-            );
+            const bs = map[bid.toString()] || {};
+            return items.every(i => (bs[i.productId] || 0) >= i.qty);
+        }).map(id => id.toString());
+
+        // Har bir mahsulotning holati
+        const productStatus = items.map(item => {
+            // Hech bo'lmasa bitta filialda yetarlimi?
+            const maxQty = branchIds.reduce((max, bid) => {
+                return Math.max(max, map[bid.toString()]?.[item.productId] || 0);
+            }, 0);
+
+            return {
+                productId: item.productId,
+                requiredQty: item.qty,
+                maxAvailableQty: maxQty,          // biror filialda maksimal qoldiq
+                availableAnywhere: maxQty >= item.qty, // biror filialda yetarlimi
+            };
         });
 
-        // Hech qaysi filialda yetarli bo'lmagan mahsulotlar
-        const unavailableProductIds = items
-            .filter(item =>
-                branchIds.every(bid =>
-                    (map[bid.toString()]?.[item.productId] || 0) < item.qty
-                )
-            )
-            .map(item => item.productId);
-
-        res.json({
-            availableBranchIds: availableBranchIds.map(id => id.toString()),
-            unavailableProductIds,
-        });
+        res.json({ availableBranchIds, productStatus });
     } catch (error) { next(error); }
 });
 
