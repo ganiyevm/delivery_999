@@ -134,7 +134,8 @@ router.post('/', auth, async (req, res, next) => {
 router.get('/my', auth, async (req, res, next) => {
     try {
         const orders = await Order.find({ user: req.user._id })
-            .populate('branch', 'number name')
+            .populate('branch', 'number name address phone')
+            .populate('items.product', 'name')
             .sort({ createdAt: -1 })
             .lean();
 

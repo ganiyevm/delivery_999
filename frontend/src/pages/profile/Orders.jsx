@@ -78,7 +78,7 @@ function OrderDetail({ order, onClose }) {
                 {order.items?.map((item, i) => (
                     <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8, fontSize: 13 }}>
                         <div style={{ flex: 1 }}>
-                            <div style={{ fontWeight: 600 }}>{item.product?.nameUz || item.product?.nameRu || 'Mahsulot'}</div>
+                            <div style={{ fontWeight: 600 }}>{item.productName || item.product?.name || 'Mahsulot'}</div>
                             <div style={{ fontSize: 11, color: 'var(--text-secondary)' }}>
                                 {(item.price || 0).toLocaleString()} сўм × {item.qty}
                             </div>
@@ -93,7 +93,8 @@ function OrderDetail({ order, onClose }) {
 
                 {/* Info rows */}
                 <InfoRow label="📍 Filial"    value={order.branch?.name || '—'} />
-                <InfoRow label="🏠 Manzil"   value={order.deliveryAddress || (order.deliveryType === 'pickup' ? 'Olib ketish' : '—')} />
+                {order.branch?.phone && <InfoRow label="📞 Filial tel" value={order.branch.phone} />}
+                <InfoRow label="🏠 Manzil"   value={order.address || order.deliveryAddress || (order.deliveryType === 'pickup' ? 'Olib ketish' : '—')} />
                 <InfoRow label="💳 To'lov"   value={PAYMENT_MAP[order.paymentMethod] || order.paymentMethod || '—'} />
                 {order.note && <InfoRow label="📝 Izoh" value={order.note} />}
 
