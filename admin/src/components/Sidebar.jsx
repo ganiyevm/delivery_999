@@ -2,8 +2,8 @@ import { NavLink } from 'react-router-dom';
 import { useT } from '../i18n';
 
 const ROLE_PAGES = {
-    super_admin: ['/', '/orders', '/products', '/branches', '/users', '/import', '/accounts'],
-    admin:       ['/', '/orders', '/products', '/branches', '/users', '/import'],
+    super_admin: ['/', '/orders', '/products', '/branches', '/users', '/import', '/accounts', '/delivery-settings'],
+    admin:       ['/', '/orders', '/products', '/branches', '/users', '/import', '/delivery-settings'],
     operator:    ['/', '/orders'],
     pharmacist:  ['/', '/products', '/branches', '/import'],
     analyst:     ['/'],
@@ -27,7 +27,8 @@ export default function Sidebar() {
         { path: '/branches', icon: '🏥', key: 'branches' },
         { path: '/users',    icon: '👥', key: 'users' },
         { path: '/import',   icon: '📤', key: 'import' },
-        { path: '/accounts', icon: '🔑', key: 'accounts' },
+        { path: '/accounts',          icon: '🔑', key: 'accounts' },
+        { path: '/delivery-settings', icon: '🚚', key: 'deliverySettings' },
     ].filter(item => allowed.includes(item.path));
 
     return (

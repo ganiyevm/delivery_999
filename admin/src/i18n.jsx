@@ -5,7 +5,7 @@ const translations = {
         // Sidebar / Nav
         dashboard: 'Dashboard', orders: 'Buyurtmalar', products: 'Mahsulotlar',
         branches: 'Filiallar', users: 'Foydalanuvchilar', import: 'Import',
-        accounts: 'Adminlar', logout: 'Chiqish',
+        accounts: 'Adminlar', logout: 'Chiqish', deliverySettings: 'Yetkazib berish',
         // Login
         loginTitle: 'Admin paneliga kirish', loginBtn: 'Kirish',
         username: 'Login', password: 'Parol',
@@ -81,7 +81,7 @@ const translations = {
     ru: {
         dashboard: 'Дашборд', orders: 'Заказы', products: 'Товары',
         branches: 'Аптеки', users: 'Пользователи', import: 'Импорт',
-        accounts: 'Администраторы', logout: 'Выйти',
+        accounts: 'Администраторы', logout: 'Выйти', deliverySettings: 'Доставка',
         loginTitle: 'Вход в панель администратора', loginBtn: 'Войти',
         username: 'Логин', password: 'Пароль',
         super_admin: 'Супер Админ', admin: 'Администратор', operator: 'Оператор',
@@ -145,7 +145,7 @@ const translations = {
     en: {
         dashboard: 'Dashboard', orders: 'Orders', products: 'Products',
         branches: 'Branches', users: 'Users', import: 'Import',
-        accounts: 'Admins', logout: 'Logout',
+        accounts: 'Admins', logout: 'Logout', deliverySettings: 'Delivery',
         loginTitle: 'Admin panel login', loginBtn: 'Sign in',
         username: 'Username', password: 'Password',
         super_admin: 'Super Admin', admin: 'Admin', operator: 'Operator',

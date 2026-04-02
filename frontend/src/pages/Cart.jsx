@@ -19,9 +19,11 @@ export default function Cart({ onNavigate, onPayment }) {
     const [geoLoading, setGeoLoading] = useState(false);
     const [branches, setBranches] = useState([]);
     const [availableBranchIds, setAvailableBranchIds] = useState(null);
-    const [productStatus, setProductStatus] = useState([]); // [{productId, maxAvailableQty, availableAnywhere}]
+    const [productStatus, setProductStatus] = useState([]);
     const [selectedBranch, setSelectedBranch] = useState('');
     const [submitting, setSubmitting] = useState(false);
+    const [userLoc, setUserLoc] = useState(null);
+    const [deliveryCalc, setDeliveryCalc] = useState(null); // { cost, distKm, free, outOfRange }
 
     const getLocation = () => {
         if (!navigator.geolocation) return alert('Qurilmangiz geolokatsiyani qo\'llab-quvvatlamaydi');
@@ -57,11 +59,20 @@ export default function Cart({ onNavigate, onPayment }) {
         );
     };
 
-    // Barcha ochiq filiallarni yuklash
+    // Barcha ochiq filiallarni yuklash + geolokatsiya
     useEffect(() => {
         branchesAPI.getAll().then(res => {
             setBranches((res.data || []).filter(b => b.isOpen));
-        }).catch(() => { });
+        }).catch(() => {});
+
+        // Foydalanuvchi joylashuvini olish
+        if (navigator.geolocation) {
+            navigator.geolocation.getCurrentPosition(
+                pos => setUserLoc({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
+                () => {},
+                { enableHighAccuracy: true, timeout: 8000 }
+            );
+        }
     }, []);
 
     // Savat o'zgarganda — qaysi filiallarda mahsulot borligini tekshirish
@@ -76,6 +87,18 @@ export default function Cart({ onNavigate, onPayment }) {
             })
             .catch(() => { setAvailableBranchIds(null); setProductStatus([]); });
     }, [items]);
+
+    // Filial yoki lokatsiya o'zgarganda yetkazish narxini hisoblash
+    useEffect(() => {
+        if (deliveryType !== 'delivery' || !selectedBranch) return;
+        const params = { branchId: selectedBranch, orderTotal: total };
+        if (userLoc) { params.userLat = userLoc.lat; params.userLng = userLoc.lng; }
+        import('../api/axios').then(({ default: ax }) => {
+            ax.post('/delivery/calculate', params)
+                .then(r => setDeliveryCalc(r.data))
+                .catch(() => setDeliveryCalc(null));
+        });
+    }, [selectedBranch, userLoc, deliveryType, total]);
 
     // Filtrlanagan filiallar ro'yxati
     const filteredBranches = availableBranchIds === null
@@ -98,12 +121,16 @@ export default function Cart({ onNavigate, onPayment }) {
         );
     }
 
-    const DELIVERY_COST = 15000;
-    const FREE_THRESHOLD = 150000;
-    const deliveryCost = deliveryType === 'delivery' ? (total >= FREE_THRESHOLD ? 0 : DELIVERY_COST) : 0;
+    // Yetkazish narxi — deliveryCalc dan (API) yoki fallback
+    const deliveryCost = deliveryType !== 'delivery' ? 0
+        : deliveryCalc?.free ? 0
+        : deliveryCalc?.outOfRange ? null       // chegara tashqarida
+        : deliveryCalc?.cost != null ? deliveryCalc.cost
+        : (deliveryCalc === null ? 15000 : null); // hali hisoblanmagan
+
     const maxBonusDiscount = Math.floor(total * 0.3);
     const bonusDiscount = useBonusPoints ? Math.min((user?.bonusPoints || 0), maxBonusDiscount) : 0;
-    const grandTotal = total + deliveryCost - bonusDiscount;
+    const grandTotal = total + (deliveryCost || 0) - bonusDiscount;
 
     const handleSubmit = async () => {
         if (!phone || !name) return alert('Ism va telefon kiritilmagan');
@@ -331,14 +358,27 @@ export default function Cart({ onNavigate, onPayment }) {
                         <span>Tovarlar</span>
                         <span>{total.toLocaleString()} сўм</span>
                     </div>
-                    <div className="summary-row">
-                        <span>{t('deliveryCost')}</span>
-                        {deliveryCost === 0 ? (
-                            <span className="free">{t('free')} 🎉</span>
-                        ) : (
-                            <span>{deliveryCost.toLocaleString()} сўм</span>
-                        )}
-                    </div>
+                    {deliveryType === 'delivery' && (
+                        <div className="summary-row">
+                            <span>
+                                {t('deliveryCost')}
+                                {deliveryCalc?.distKm != null && (
+                                    <span style={{ fontSize: 11, color: 'var(--text-secondary)', marginLeft: 4 }}>
+                                        ({deliveryCalc.distKm} km)
+                                    </span>
+                                )}
+                            </span>
+                            {deliveryCalc?.outOfRange ? (
+                                <span style={{ color: 'var(--red)', fontSize: 12, fontWeight: 700 }}>🚫 Yetkazilmaydi</span>
+                            ) : deliveryCost === 0 ? (
+                                <span className="free">{t('free')} 🎉</span>
+                            ) : deliveryCost != null ? (
+                                <span style={{ fontWeight: 700 }}>{deliveryCost.toLocaleString()} сўм</span>
+                            ) : (
+                                <span style={{ color: 'var(--text-secondary)', fontSize: 12 }}>Hisoblanmoqda...</span>
+                            )}
+                        </div>
+                    )}
                     {bonusDiscount > 0 && (
                         <div className="summary-row">
                             <span>Bonus</span>
@@ -351,9 +391,16 @@ export default function Cart({ onNavigate, onPayment }) {
                     </div>
                 </div>
 
-                <button className="btn-primary" onClick={handleSubmit} disabled={submitting}>
-                    {submitting ? `⏳ ${t('ordering')}` : `${t('placeOrder')} • ${grandTotal.toLocaleString()} сўм`}
-                </button>
+                {deliveryCalc?.outOfRange && deliveryType === 'delivery' ? (
+                    <div style={{ padding: '14px', borderRadius: 14, textAlign: 'center', background: 'rgba(231,76,60,0.08)', border: '1px solid rgba(231,76,60,0.2)', color: 'var(--red)', fontSize: 13, fontWeight: 600 }}>
+                        🚫 Manzilingiz yetkazib berish chegarasidan tashqarida ({deliveryCalc.distKm} km)<br />
+                        <span style={{ fontWeight: 400, fontSize: 12 }}>Iltimos, "Olib ketish" rejimini tanlang yoki manzilni o'zgartiring</span>
+                    </div>
+                ) : (
+                    <button className="btn-primary" onClick={handleSubmit} disabled={submitting}>
+                        {submitting ? `⏳ ${t('ordering')}` : `${t('placeOrder')} • ${grandTotal.toLocaleString()} сўм`}
+                    </button>
+                )}
             </div>
         </div>
     );
