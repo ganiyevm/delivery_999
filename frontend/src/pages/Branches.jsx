@@ -5,7 +5,6 @@ import { branchesAPI } from '../api/index';
 import { useT } from '../i18n';
 import 'leaflet/dist/leaflet.css';
 
-// ── Leaflet default icon fix ─────────────────────────────────────
 delete L.Icon.Default.prototype._getIconUrl;
 L.Icon.Default.mergeOptions({
     iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
@@ -13,7 +12,6 @@ L.Icon.Default.mergeOptions({
     shadowUrl:     'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
 });
 
-// Yashil (ochiq) va kulrang (yopiq) ikonkalar
 const greenIcon = new L.Icon({
     iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-green.png',
     shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
@@ -30,7 +28,6 @@ const blueIcon = new L.Icon({
     iconSize: [25, 41], iconAnchor: [12, 41], popupAnchor: [1, -34], shadowSize: [41, 41],
 });
 
-// Haversine masofasi (km)
 function haversine(lat1, lng1, lat2, lng2) {
     const R = 6371;
     const dLat = (lat2 - lat1) * Math.PI / 180;
@@ -46,7 +43,6 @@ function fmtDist(km) {
     return `${km.toFixed(1)} km`;
 }
 
-// Map fly-to helper
 function MapFlyTo({ center, zoom }) {
     const map = useMap();
     useEffect(() => {
@@ -55,8 +51,7 @@ function MapFlyTo({ center, zoom }) {
     return null;
 }
 
-// ── Nav Sheet ────────────────────────────────────────────────────
-const ICONS = {
+const NAV_ICONS = {
     yandexNav:  'https://upload.wikimedia.org/wikipedia/commons/thumb/a/a3/YandexNavigatorLogo.svg/200px-YandexNavigatorLogo.svg.png',
     yandexMaps: 'https://upload.wikimedia.org/wikipedia/commons/thumb/7/72/Yandex_Maps_icon.svg/200px-Yandex_Maps_icon.svg.png',
     googleMaps: 'https://upload.wikimedia.org/wikipedia/commons/thumb/a/aa/Google_Maps_icon_%282020%29.svg/200px-Google_Maps_icon_%282020%29.svg.png',
@@ -67,18 +62,19 @@ function openMapApp(url) {
     if (tg?.openLink) tg.openLink(url);
     else window.open(url, '_blank');
 }
-function NavSheet({ branch, onClose }) {
+
+function NavSheet({ branch, onClose, t }) {
     const lat = branch.location?.lat || null;
     const lng = branch.location?.lng || null;
     const addr = encodeURIComponent((branch.address || '') + ', Toshkent');
     const opts = [
-        { label: 'Yandex Navigator', sub: 'Navigatsiya', src: ICONS.yandexNav,
+        { label: 'Yandex Navigator', sub: t('navYandexSub'), src: NAV_ICONS.yandexNav,
           url: lat ? `https://yandex.uz/maps/?rtext=~${lat},${lng}&rtt=auto` : `https://yandex.uz/maps/?text=${addr}&rtt=auto` },
-        { label: 'Yandex Maps', sub: 'Yandex xaritasi', src: ICONS.yandexMaps,
+        { label: 'Yandex Maps', sub: t('navYandexMapsSub'), src: NAV_ICONS.yandexMaps,
           url: lat ? `https://yandex.uz/maps/?pt=${lng},${lat}&z=17` : `https://yandex.uz/maps/?text=${addr}` },
-        { label: 'Google Maps', sub: "Yo'nalish", src: ICONS.googleMaps,
+        { label: 'Google Maps', sub: t('navGoogleSub'), src: NAV_ICONS.googleMaps,
           url: lat ? `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}` : `https://www.google.com/maps/search/?api=1&query=${addr}` },
-        { label: 'Apple Maps', sub: 'iPhone uchun', src: ICONS.appleMaps,
+        { label: 'Apple Maps', sub: t('navAppleSub'), src: NAV_ICONS.appleMaps,
           url: lat ? `https://maps.apple.com/?daddr=${lat},${lng}&dirflg=d` : `https://maps.apple.com/?q=${addr}` },
     ];
     return (
@@ -103,15 +99,14 @@ function NavSheet({ branch, onClose }) {
                     </button>
                 ))}
                 <button onClick={onClose} style={{ display: 'block', width: 'calc(100% - 40px)', margin: '8px 20px 0', padding: 13, borderRadius: 14, fontSize: 15, fontWeight: 600, background: 'var(--bg)', color: 'var(--text)', border: '1px solid var(--border)', cursor: 'pointer' }}>
-                    Bekor qilish
+                    {t('cancel')}
                 </button>
             </div>
         </div>
     );
 }
 
-// ── Branch Card ───────────────────────────────────────────────────
-function BranchCard({ branch, userLoc, isNearest, onNavigate, onSelect, isSelected }) {
+function BranchCard({ branch, userLoc, isNearest, onNavigate, onSelect, isSelected, t }) {
     const dist = userLoc && branch.location?.lat
         ? haversine(userLoc.lat, userLoc.lng, branch.location.lat, branch.location.lng)
         : null;
@@ -126,19 +121,18 @@ function BranchCard({ branch, userLoc, isNearest, onNavigate, onSelect, isSelect
                 cursor: 'pointer', transition: 'border-color 0.2s',
                 opacity: branch.isOpen ? 1 : 0.65,
             }}>
-            {/* Header */}
             <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 8, marginBottom: 8 }}>
                 <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
                         {isNearest && (
                             <span style={{ fontSize: 10, fontWeight: 800, background: 'var(--green)', color: '#fff', padding: '2px 8px', borderRadius: 20 }}>
-                                📍 Eng yaqin
+                                📍 {t('nearest')}
                             </span>
                         )}
                         <span style={{ fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 20,
                             background: branch.isOpen ? 'rgba(39,174,96,0.12)' : 'rgba(139,143,163,0.12)',
                             color: branch.isOpen ? 'var(--green)' : 'var(--text-secondary)' }}>
-                            {branch.isOpen ? '● Ochiq' : '● Yopiq'}
+                            ● {branch.isOpen ? t('openText') : t('closedText')}
                         </span>
                     </div>
                     <div style={{ fontWeight: 700, fontSize: 14, color: 'var(--text)', marginTop: 5, lineHeight: 1.3 }}>
@@ -150,15 +144,14 @@ function BranchCard({ branch, userLoc, isNearest, onNavigate, onSelect, isSelect
                         <div style={{ fontSize: 16, fontWeight: 800, color: dist < 1 ? 'var(--green)' : dist < 3 ? 'var(--orange)' : 'var(--text-secondary)' }}>
                             {fmtDist(dist)}
                         </div>
-                        <div style={{ fontSize: 10, color: 'var(--text-secondary)' }}>uzoqlikda</div>
+                        <div style={{ fontSize: 10, color: 'var(--text-secondary)' }}>{t('away')}</div>
                     </div>
                 )}
             </div>
 
-            {/* Info */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
                 <div style={{ fontSize: 12, color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: 6 }}>
-                    <span>📍</span> <span>{branch.address || 'Manzil ko\'rsatilmagan'}</span>
+                    <span>📍</span> <span>{branch.address || t('noAddress')}</span>
                 </div>
                 {branch.phone && (
                     <div style={{ fontSize: 12, color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: 6 }}>
@@ -174,36 +167,29 @@ function BranchCard({ branch, userLoc, isNearest, onNavigate, onSelect, isSelect
                 </div>
             </div>
 
-            {/* Actions */}
             {hasCoords && (
                 <button
                     onClick={e => { e.stopPropagation(); onNavigate(branch); }}
-                    style={{
-                        marginTop: 12, width: '100%', padding: '10px', borderRadius: 12,
-                        background: 'var(--green)', color: '#fff', border: 'none',
-                        fontWeight: 700, fontSize: 13, cursor: 'pointer',
-                        display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
-                    }}>
+                    style={{ marginTop: 12, width: '100%', padding: '10px', borderRadius: 12, background: 'var(--green)', color: '#fff', border: 'none', fontWeight: 700, fontSize: 13, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
                         <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z" fill="white"/>
                     </svg>
-                    Yo'nalish olish
+                    {t('getDirections')}
                 </button>
             )}
         </div>
     );
 }
 
-// ── Main ─────────────────────────────────────────────────────────
 export default function Branches() {
-    useT();
+    const { t } = useT();
     const [branches,   setBranches]   = useState([]);
     const [loading,    setLoading]    = useState(true);
     const [userLoc,    setUserLoc]    = useState(null);
     const [locLoading, setLocLoading] = useState(false);
     const [navBranch,  setNavBranch]  = useState(null);
-    const [selected,   setSelected]   = useState(null); // map da ochilgan
-    const [view,       setView]       = useState('list'); // 'list' | 'map'
+    const [selected,   setSelected]   = useState(null);
+    const [view,       setView]       = useState('list');
     const [flyTo,      setFlyTo]      = useState(null);
     const listRef = useRef(null);
     const cardRefs = useRef({});
@@ -214,7 +200,6 @@ export default function Branches() {
             .catch(() => {})
             .finally(() => setLoading(false));
 
-        // Lokatsiyani avtomatik olish
         if (navigator.geolocation) {
             setLocLoading(true);
             navigator.geolocation.getCurrentPosition(
@@ -228,7 +213,6 @@ export default function Branches() {
         }
     }, []);
 
-    // Masofaga qarab sort
     const sorted = useMemo(() => {
         if (!userLoc) return branches;
         return [...branches].sort((a, b) => {
@@ -241,7 +225,6 @@ export default function Branches() {
     const withCoords = sorted.filter(b => b.location?.lat && b.location.lat !== 0);
     const nearest = sorted.find(b => b.location?.lat && b.location.lat !== 0);
 
-    // Xaritada markerni bossak — listda scroll
     const handleMapSelect = (branch) => {
         setSelected(branch);
         setView('list');
@@ -250,7 +233,6 @@ export default function Branches() {
         }, 100);
     };
 
-    // Listda kartani bossak — xaritada ko'rsat
     const handleCardSelect = (branch) => {
         if (!branch.location?.lat) return;
         setSelected(branch);
@@ -258,7 +240,6 @@ export default function Branches() {
         if (view === 'list') setView('map');
     };
 
-    // Markaz: eng yaqin filial yoki Toshkent
     const mapCenter = nearest?.location
         ? [nearest.location.lat, nearest.location.lng]
         : [41.2995, 69.2401];
@@ -270,74 +251,58 @@ export default function Branches() {
     return (
         <>
         <div className="page" style={{ paddingBottom: 80 }}>
-            {/* ── Header ── */}
             <div className="back-bar">
-                <h2>🏥 Filiallar</h2>
-                {locLoading && <span style={{ fontSize: 11, color: 'var(--text-secondary)' }}>📡 Joylashuv...</span>}
-                {userLoc && !locLoading && <span style={{ fontSize: 11, color: 'var(--green)' }}>📍 Joylashuv aniqlandi</span>}
+                <h2>🏥 {t('branches')}</h2>
+                {locLoading && <span style={{ fontSize: 11, color: 'var(--text-secondary)' }}>📡 {t('locating')}</span>}
+                {userLoc && !locLoading && <span style={{ fontSize: 11, color: 'var(--green)' }}>📍 {t('locationFound')}</span>}
             </div>
 
-            {/* ── Stats ── */}
             <div style={{ padding: '0 20px 12px', display: 'flex', gap: 16, fontSize: 13 }}>
-                <span style={{ color: 'var(--text-secondary)' }}>Jami: <strong style={{ color: 'var(--text)' }}>{branches.length}</strong></span>
-                <span style={{ color: 'var(--green)' }}>● Ochiq: <strong>{openCount}</strong></span>
-                <span style={{ color: 'var(--text-secondary)' }}>● Yopiq: <strong>{branches.length - openCount}</strong></span>
+                <span style={{ color: 'var(--text-secondary)' }}>{t('totalLabel')}: <strong style={{ color: 'var(--text)' }}>{branches.length}</strong></span>
+                <span style={{ color: 'var(--green)' }}>● {t('openLabel')}: <strong>{openCount}</strong></span>
+                <span style={{ color: 'var(--text-secondary)' }}>● {t('closedLabel')}: <strong>{branches.length - openCount}</strong></span>
             </div>
 
-            {/* ── View toggle ── */}
             <div style={{ padding: '0 20px 14px', display: 'flex', gap: 8 }}>
                 <button onClick={() => setView('list')} style={{
-                    flex: 1, padding: '9px', borderRadius: 12, fontWeight: 700, fontSize: 13, cursor: 'pointer', border: 'none',
+                    flex: 1, padding: '9px', borderRadius: 12, fontWeight: 700, fontSize: 13, cursor: 'pointer',
                     background: view === 'list' ? 'var(--green)' : 'var(--card)',
                     color: view === 'list' ? '#fff' : 'var(--text-secondary)',
                     border: view === 'list' ? 'none' : '1px solid var(--border)',
-                }}>📋 Ro'yxat</button>
+                }}>📋 {t('listView')}</button>
                 <button onClick={() => setView('map')} style={{
                     flex: 1, padding: '9px', borderRadius: 12, fontWeight: 700, fontSize: 13, cursor: 'pointer',
                     background: view === 'map' ? 'var(--green)' : 'var(--card)',
                     color: view === 'map' ? '#fff' : 'var(--text-secondary)',
                     border: view === 'map' ? 'none' : '1px solid var(--border)',
-                }}>🗺 Xarita</button>
+                }}>🗺 {t('mapView')}</button>
             </div>
 
-            {/* ── Map view ── */}
             {view === 'map' && (
                 <div style={{ padding: '0 20px 16px' }}>
                     <div style={{ borderRadius: 18, overflow: 'hidden', height: 380, border: '1px solid var(--border)' }}>
-                        <MapContainer
-                            center={mapCenter}
-                            zoom={12}
-                            style={{ height: '100%', width: '100%' }}
-                            zoomControl={false}>
-                            <TileLayer
-                                url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-                                attribution='© OpenStreetMap'
-                            />
+                        <MapContainer center={mapCenter} zoom={12} style={{ height: '100%', width: '100%' }} zoomControl={false}>
+                            <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" attribution='© OpenStreetMap' />
                             {flyTo && <MapFlyTo center={flyTo.center} zoom={flyTo.zoom} />}
-                            {/* Foydalanuvchi */}
                             {userLoc && (
                                 <>
-                                    <Circle
-                                        center={[userLoc.lat, userLoc.lng]}
-                                        radius={300}
-                                        pathOptions={{ color: '#3b82f6', fillColor: '#3b82f6', fillOpacity: 0.15, weight: 2 }}
-                                    />
+                                    <Circle center={[userLoc.lat, userLoc.lng]} radius={300}
+                                        pathOptions={{ color: '#3b82f6', fillColor: '#3b82f6', fillOpacity: 0.15, weight: 2 }} />
                                     <Marker position={[userLoc.lat, userLoc.lng]} icon={blueIcon}>
-                                        <Popup>📍 Siz shu yerdasiz</Popup>
+                                        <Popup>📍 {t('youAreHere')}</Popup>
                                     </Marker>
                                 </>
                             )}
-                            {/* Filiallar */}
                             {withCoords.map(b => (
-                                <Marker
-                                    key={b._id}
-                                    position={[b.location.lat, b.location.lng]}
+                                <Marker key={b._id} position={[b.location.lat, b.location.lng]}
                                     icon={b.isOpen ? greenIcon : grayIcon}
                                     eventHandlers={{ click: () => handleMapSelect(b) }}>
                                     <Popup>
                                         <div style={{ minWidth: 160 }}>
                                             <strong>№{String(b.number).padStart(3, '0')} {b.name}</strong><br />
-                                            <span style={{ color: b.isOpen ? 'green' : 'gray' }}>{b.isOpen ? '● Ochiq' : '● Yopiq'}</span><br />
+                                            <span style={{ color: b.isOpen ? 'green' : 'gray' }}>
+                                                ● {b.isOpen ? t('openText') : t('closedText')}
+                                            </span><br />
                                             {b.address && <span style={{ fontSize: 12 }}>{b.address}</span>}
                                         </div>
                                     </Popup>
@@ -346,32 +311,27 @@ export default function Branches() {
                         </MapContainer>
                     </div>
                     <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginTop: 6, textAlign: 'center' }}>
-                        🟢 Ochiq · ⚫ Yopiq · 🔵 Siz
+                        {t('mapLegendText')}
                     </div>
                 </div>
             )}
 
-            {/* ── List view ── */}
             {view === 'list' && (
                 <div ref={listRef} style={{ padding: '0 20px', display: 'flex', flexDirection: 'column', gap: 12 }}>
                     {userLoc && nearest && (
-                        <div style={{
-                            padding: '10px 14px', borderRadius: 12, fontSize: 12,
-                            background: 'rgba(39,174,96,0.08)', border: '1px solid rgba(39,174,96,0.2)',
-                            color: 'var(--green)', fontWeight: 600,
-                        }}>
-                            📍 Eng yaqin filial: {fmtDist(haversine(userLoc.lat, userLoc.lng, nearest.location.lat, nearest.location.lng))} uzoqlikda
+                        <div style={{ padding: '10px 14px', borderRadius: 12, fontSize: 12, background: 'rgba(39,174,96,0.08)', border: '1px solid rgba(39,174,96,0.2)', color: 'var(--green)', fontWeight: 600 }}>
+                            📍 {t('nearestBranchInfo').replace('{dist}', fmtDist(haversine(userLoc.lat, userLoc.lng, nearest.location.lat, nearest.location.lng)))}
                         </div>
                     )}
                     {sorted.map((b) => (
                         <div key={b._id} ref={el => cardRefs.current[b._id] = el}>
                             <BranchCard
-                                branch={b}
-                                userLoc={userLoc}
-                                isNearest={b._id === nearest?._id && userLoc}
+                                branch={b} userLoc={userLoc}
+                                isNearest={b._id === nearest?._id && !!userLoc}
                                 isSelected={selected?._id === b._id}
                                 onNavigate={setNavBranch}
                                 onSelect={handleCardSelect}
+                                t={t}
                             />
                         </div>
                     ))}
@@ -379,7 +339,7 @@ export default function Branches() {
             )}
         </div>
 
-        {navBranch && <NavSheet branch={navBranch} onClose={() => setNavBranch(null)} />}
+        {navBranch && <NavSheet branch={navBranch} onClose={() => setNavBranch(null)} t={t} />}
         </>
     );
 }

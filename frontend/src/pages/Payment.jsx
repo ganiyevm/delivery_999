@@ -1,18 +1,20 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { paymentAPI } from '../api/index';
 import { useCart } from '../context/CartContext';
+import { useT } from '../i18n';
 
-const DB_POLL_INTERVAL = 5000;  // Bazani har 5 sekundda tekshir
-const API_CHECK_INTERVAL = 15000; // Click/Payme API ni har 15 sekundda tekshir
-const TIMEOUT_MS = 5 * 60 * 1000; // 5 daqiqadan keyin timeout
+const DB_POLL_INTERVAL  = 5000;
+const API_CHECK_INTERVAL = 15000;
+const TIMEOUT_MS = 5 * 60 * 1000;
 
 export default function Payment({ orderId, onDone }) {
+    const { t } = useT();
     const [status, setStatus] = useState('pending');
     const [orderInfo, setOrderInfo] = useState(null);
     const [timedOut, setTimedOut] = useState(false);
     const [checking, setChecking] = useState(false);
     const [checkError, setCheckError] = useState('');
-    const [payMethod, setPayMethod] = useState(''); // click | payme
+    const [payMethod, setPayMethod] = useState('');
     const { clearCart } = useCart();
 
     useEffect(() => {
@@ -38,7 +40,6 @@ export default function Payment({ orderId, onDone }) {
             if (done) return;
             try {
                 const { data } = await paymentAPI.getStatus(orderId);
-                // To'lov usulini aniqlash
                 if (data.paymentMethod && !detectedMethod) {
                     detectedMethod = data.paymentMethod;
                     setPayMethod(data.paymentMethod);
@@ -66,16 +67,10 @@ export default function Payment({ orderId, onDone }) {
             } catch { /* ignore */ }
         };
 
-        // 1. Darhol tekshir
         checkDb();
-
-        // 2. Bazani polling
-        const dbInterval = setInterval(checkDb, DB_POLL_INTERVAL);
-
-        // 3. Click/Payme API tekshirish
+        const dbInterval  = setInterval(checkDb, DB_POLL_INTERVAL);
         const apiInterval = setInterval(checkPaymentApi, API_CHECK_INTERVAL);
 
-        // 4. Foydalanuvchi to'lov sahifasidan qaytishi bilan — DARHOL tekshir
         const onVisible = () => {
             if (!done && document.visibilityState === 'visible') {
                 checkDb();
@@ -84,7 +79,6 @@ export default function Payment({ orderId, onDone }) {
         };
         document.addEventListener('visibilitychange', onVisible);
 
-        // 5. Timeout
         const timeout = setTimeout(() => {
             if (!done) setTimedOut(true);
         }, TIMEOUT_MS);
@@ -104,19 +98,19 @@ export default function Payment({ orderId, onDone }) {
             <div className="page">
                 <div className="payment-status fade-up">
                     <div className="icon pulse">✅</div>
-                    <h2>To'lov qabul qilindi!</h2>
+                    <h2>{t('paymentReceived')}</h2>
                     <p style={{ fontSize: 18, fontWeight: 800, color: 'var(--green)', margin: '12px 0' }}>
                         #{orderInfo?.orderNumber}
                     </p>
                     {orderInfo?.bonusEarned > 0 && (
                         <p style={{ color: 'var(--orange)', fontWeight: 700 }}>
-                            +{orderInfo.bonusEarned} bonus ball 🎉
+                            +{orderInfo.bonusEarned} {t('bonusBall')} 🎉
                         </p>
                     )}
                     <button className="btn-primary"
                         style={{ marginTop: 24, maxWidth: 280, margin: '24px auto 0' }}
                         onClick={() => onDone?.('orders')}>
-                        Buyurtmalarni ko'rish
+                        {t('viewOrders')}
                     </button>
                 </div>
             </div>
@@ -128,12 +122,12 @@ export default function Payment({ orderId, onDone }) {
             <div className="page">
                 <div className="payment-status fade-up">
                     <div className="icon">❌</div>
-                    <h2>To'lov amalga oshmadi</h2>
-                    <p>To'lovda xatolik yuz berdi. Qayta urinib ko'ring.</p>
+                    <h2>{t('paymentFailed')}</h2>
+                    <p>{t('paymentError')}</p>
                     <button className="btn-primary"
                         style={{ marginTop: 24, maxWidth: 280, margin: '24px auto 0' }}
                         onClick={() => onDone?.('cart')}>
-                        Qayta urinish
+                        {t('tryAgain')}
                     </button>
                 </div>
             </div>
@@ -146,27 +140,29 @@ export default function Payment({ orderId, onDone }) {
                 {timedOut ? (
                     <>
                         <div className="icon">⏱</div>
-                        <h2>To'lov tekshirilmoqda</h2>
+                        <h2>{t('paymentVerifying')}</h2>
                         <p style={{ textAlign: 'center', color: 'var(--text-secondary)', lineHeight: 1.6 }}>
-                            Agar {providerName} orqali to'lov amalga oshgan bo'lsa,
-                            buyurtma tez orada yangilanadi.
+                            {providerName} {t('paymentProviderMsg')}
                         </p>
                         <button className="btn-primary"
                             style={{ marginTop: 24, maxWidth: 280, margin: '24px auto 0' }}
                             onClick={() => onDone?.('orders')}>
-                            Buyurtmalarni ko'rish
+                            {t('viewOrders')}
                         </button>
                         <button className="btn"
                             style={{ marginTop: 12, maxWidth: 280, margin: '12px auto 0' }}
                             onClick={() => onDone?.('cart')}>
-                            Savatga qaytish
+                            {t('backToCart')}
                         </button>
                     </>
                 ) : (
                     <>
                         <div className="payment-loader" />
-                        <h2>To'lov tasdiqlanmoqda...</h2>
-                        <p>{providerName || 'To\'lov tizimi'} orqali to'lovni amalga oshiring.<br />Bu sahifa avtomatik yangilanadi.</p>
+                        <h2>{t('confirmingPayment')}</h2>
+                        <p>
+                            {providerName || t('paymentSystem')} {t('paymentProviderMsg')}<br />
+                            {t('autoUpdateMsg')}
+                        </p>
 
                         <button
                             className="btn-primary"
@@ -190,24 +186,18 @@ export default function Payment({ orderId, onDone }) {
                                         setOrderInfo(info);
                                         setStatus('success');
                                     } else {
-                                        setCheckError(data.message || "To'lov tasdiqlanmadi");
+                                        setCheckError(data.message || t('paymentNotConfirmed'));
                                     }
                                 } catch {
-                                    setCheckError("Serverga ulanishda xato. Qayta urinib ko'ring.");
+                                    setCheckError(t('serverConnectError'));
                                 }
                                 setChecking(false);
                             }}>
-                            {checking ? 'Tekshirilmoqda...' : "✅ To'lovni tasdiqlash"}
+                            {checking ? t('checking') : `✅ ${t('confirmPayment')}`}
                         </button>
 
                         {checkError && (
-                            <div style={{
-                                marginTop: 12, padding: '10px 16px',
-                                background: '#fff3f3', border: '1px solid #ffcdd2',
-                                borderRadius: 10, color: '#c0392b',
-                                fontSize: 13, textAlign: 'center',
-                                maxWidth: 280, margin: '12px auto 0',
-                            }}>
+                            <div style={{ marginTop: 12, padding: '10px 16px', background: '#fff3f3', border: '1px solid #ffcdd2', borderRadius: 10, color: '#c0392b', fontSize: 13, textAlign: 'center', maxWidth: 280, margin: '12px auto 0' }}>
                                 ❌ {checkError}
                             </div>
                         )}
@@ -215,7 +205,7 @@ export default function Payment({ orderId, onDone }) {
                         <button className="btn"
                             style={{ marginTop: 10, maxWidth: 280, margin: '12px auto 0' }}
                             onClick={() => onDone?.('orders')}>
-                            Buyurtmalarni ko'rish
+                            {t('viewOrders')}
                         </button>
                     </>
                 )}

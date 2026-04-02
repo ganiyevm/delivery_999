@@ -1,10 +1,12 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { productsAPI, userAPI } from '../api/index';
 import DrugImage from '../components/DrugImages';
 import { useCart } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
+import { useT } from '../i18n';
 
 export default function ProductDetail({ productId, onBack }) {
+    const { t } = useT();
     const [product, setProduct] = useState(null);
     const [loading, setLoading] = useState(true);
     const [isFav, setIsFav] = useState(false);
@@ -47,7 +49,7 @@ export default function ProductDetail({ productId, onBack }) {
     };
 
     if (loading) return <div className="loading"><div className="loading-spinner" /></div>;
-    if (!product) return <div className="empty-state"><div className="icon">😔</div><h3>Topilmadi</h3></div>;
+    if (!product) return <div className="empty-state"><div className="icon">😔</div><h3>{t('notFound')}</h3></div>;
 
     const availableStocks = product.stocks?.filter(s => s.qty > 0) || [];
 
@@ -55,7 +57,7 @@ export default function ProductDetail({ productId, onBack }) {
         <div className="page" style={{ paddingBottom: 140 }}>
             <div className="back-bar">
                 <button className="back-btn" onClick={onBack}>←</button>
-                <h2>Mahsulot</h2>
+                <h2>{t('productTitle')}</h2>
             </div>
 
             <div className="product-detail-img fade-up">
@@ -66,41 +68,41 @@ export default function ProductDetail({ productId, onBack }) {
                 <div className="product-detail-badges">
                     {product.requiresRx && <span className="badge badge-rx">Rx</span>}
                     {product.totalQty > 0 ? (
-                        <span className="badge badge-instock">✓ Mavjud</span>
+                        <span className="badge badge-instock">✓ {t('inStock')}</span>
                     ) : (
-                        <span className="badge badge-outstock">Mavjud emas</span>
+                        <span className="badge badge-outstock">{t('outOfStock')}</span>
                     )}
                 </div>
                 <h1 className="product-detail-name">{product.name}</h1>
                 <div className="product-detail-price">
-                    {product.minPrice ? `${product.minPrice.toLocaleString()} сўм` : 'Narx belgilanmagan'}
+                    {product.minPrice ? `${product.minPrice.toLocaleString()} сўм` : t('noPriceSet')}
                 </div>
             </div>
 
             {product.manufacturer && (
                 <div className="product-detail-section">
-                    <h3>Ishlab chiqaruvchi</h3>
+                    <h3>{t('manufacturer')}</h3>
                     <p>{product.manufacturer} {product.country ? `(${product.country})` : ''}</p>
                 </div>
             )}
 
             {product.ingredient && (
                 <div className="product-detail-section">
-                    <h3>Tarkib</h3>
+                    <h3>{t('ingredient')}</h3>
                     <p>{product.ingredient}</p>
                 </div>
             )}
 
             {product.description?.uz && (
                 <div className="product-detail-section">
-                    <h3>Tavsif</h3>
+                    <h3>{t('descriptionLabel')}</h3>
                     <p>{product.description.uz}</p>
                 </div>
             )}
 
             {product.analogs?.length > 0 && (
                 <div className="product-detail-section">
-                    <h3>Analoglar</h3>
+                    <h3>{t('analogs')}</h3>
                     <div className="chips-scroll" style={{ paddingLeft: 0 }}>
                         {product.analogs.map((a, i) => <span key={i} className="chip">{a}</span>)}
                     </div>
@@ -109,12 +111,12 @@ export default function ProductDetail({ productId, onBack }) {
 
             {availableStocks.length > 0 && (
                 <div className="product-detail-section">
-                    <h3>Mavjud filiallar ({availableStocks.length})</h3>
+                    <h3>{t('availableBranches')} ({availableStocks.length})</h3>
                     {availableStocks.map((s, i) => (
                         <div key={i} className="branch-card" style={{ marginLeft: 0, marginRight: 0 }}>
                             <div className="branch-info">
                                 <h4>№{String(s.branch?.number).padStart(3, '0')} {s.branch?.name}</h4>
-                                <p>{s.price?.toLocaleString()} сўм • {s.qty} ta qoldi</p>
+                                <p>{s.price?.toLocaleString()} сўм • {s.qty} {t('leftInStock')}</p>
                             </div>
                         </div>
                     ))}
@@ -133,7 +135,9 @@ export default function ProductDetail({ productId, onBack }) {
                     </div>
                 </div>
                 <button className="btn-primary" onClick={handleAddToCart} disabled={product.totalQty === 0}>
-                    {product.totalQty > 0 ? `Savatga qo'shish • ${((product.minPrice || 0) * qty).toLocaleString()} сўм` : 'Mavjud emas'}
+                    {product.totalQty > 0
+                        ? `${t('addToCart')} • ${((product.minPrice || 0) * qty).toLocaleString()} сўм`
+                        : t('outOfStock')}
                 </button>
             </div>
         </div>

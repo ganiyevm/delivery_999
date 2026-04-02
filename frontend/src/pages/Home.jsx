@@ -1,7 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { productsAPI, branchesAPI } from '../api/index';
 import ProductCard from '../components/ProductCard';
-import DrugImage from '../components/DrugImages';
 import { useAuth } from '../context/AuthContext';
 import { useCart } from '../context/CartContext';
 import { useT } from '../i18n';
@@ -27,21 +26,23 @@ export default function Home({ onNavigate, onProduct, onScanner }) {
     useEffect(() => {
         productsAPI.getAll({ sort: 'popular', limit: 6 })
             .then(res => setPopular(res.data.products || []))
-            .catch(() => { });
+            .catch(() => {});
         branchesAPI.getAll()
             .then(res => { if (res.data?.length) setBranchCount(res.data.length); })
-            .catch(() => { });
+            .catch(() => {});
     }, []);
 
     const bonusProgress = user ? Math.min((user.bonusPoints || 0) / 50, 100) : 0;
 
     return (
         <div className="page">
-            {/* Header */}
             <header className="header">
                 <div className="header-logo">
                     <img src="/logo999.jpg" alt="999" style={{ height: 40, width: 40, borderRadius: 10, objectFit: 'cover' }} />
-                    <h1>Сеть Аптек 999<span>Тошкент бўйлаб {branchCount} филиал</span></h1>
+                    <h1>
+                        {t('appName')}
+                        <span>{t('branchSubtitle').replace('{n}', branchCount)}</span>
+                    </h1>
                 </div>
                 <div className="header-actions">
                     <button className="header-btn" onClick={onScanner}>📷</button>
@@ -52,19 +53,16 @@ export default function Home({ onNavigate, onProduct, onScanner }) {
                 </div>
             </header>
 
-            {/* Search */}
             <div className="search-bar" onClick={() => onNavigate('catalog')}>
                 <span className="search-icon">🔍</span>
                 <input className="search-input" placeholder={t('searchPlaceholder')} readOnly />
             </div>
 
-            {/* Promo */}
             <div className="promo-banner fade-up">
                 <h2>{t('promoTitle')}</h2>
                 <p>{t('promoText')}</p>
             </div>
 
-            {/* Stats */}
             <div className="stats-grid fade-up">
                 <div className="stat-card">
                     <div className="icon">🏥</div>
@@ -83,7 +81,6 @@ export default function Home({ onNavigate, onProduct, onScanner }) {
                 </div>
             </div>
 
-            {/* Bonus */}
             {user && (
                 <div className="bonus-card fade-up" onClick={() => onNavigate('bonus')}>
                     <div className="tier">{t(user.bonusTier)}</div>
@@ -95,7 +92,6 @@ export default function Home({ onNavigate, onProduct, onScanner }) {
                 </div>
             )}
 
-            {/* Categories */}
             <h3 className="section-title">{t('categoriesTitle')}</h3>
             <div className="categories-grid fade-up">
                 {CATEGORY_ICONS.map(cat => (
@@ -106,7 +102,6 @@ export default function Home({ onNavigate, onProduct, onScanner }) {
                 ))}
             </div>
 
-            {/* Popular */}
             <h3 className="section-title">{t('popularTitle')}</h3>
             <div className="products-grid fade-up">
                 {popular.map(p => (
@@ -114,13 +109,12 @@ export default function Home({ onNavigate, onProduct, onScanner }) {
                 ))}
             </div>
 
-            {/* Delivery info */}
             <h3 className="section-title">{t('deliveryTitle')}</h3>
             <div className="delivery-info fade-up">
                 <div className="delivery-info-grid">
                     <div className="delivery-info-item">
                         <div className="icon">💰</div>
-                        <div className="text">Min 50,000 сўм</div>
+                        <div className="text">50 000 сўм</div>
                         <div className="sub">{t('minOrder')}</div>
                     </div>
                     <div className="delivery-info-item">

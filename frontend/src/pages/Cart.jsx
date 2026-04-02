@@ -23,28 +23,24 @@ export default function Cart({ onNavigate, onPayment }) {
     const [selectedBranch, setSelectedBranch] = useState('');
     const [submitting, setSubmitting] = useState(false);
     const [userLoc, setUserLoc] = useState(null);
-    const [deliveryCalc, setDeliveryCalc] = useState(null); // { cost, distKm, free, outOfRange }
+    const [deliveryCalc, setDeliveryCalc] = useState(null);
 
     const getLocation = () => {
-        if (!navigator.geolocation) return alert('Qurilmangiz geolokatsiyani qo\'llab-quvvatlamaydi');
+        if (!navigator.geolocation) return alert(t('geoNotSupported'));
         setGeoLoading(true);
         navigator.geolocation.getCurrentPosition(
             async (pos) => {
                 const { latitude, longitude } = pos.coords;
                 const coords = `${latitude.toFixed(6)}, ${longitude.toFixed(6)}`;
                 try {
-                    // Yandex Geocoder — Toshkent uy raqamlarini ham qaytaradi
                     const res = await fetch(
                         `https://geocode-maps.yandex.ru/1.x/?apikey=b282d82a-e502-4d33-acb3-d5bd433af913&geocode=${longitude},${latitude}&format=json&results=1&lang=uz_UZ`
                     );
                     const data = await res.json();
                     const geoObj = data?.response?.GeoObjectCollection?.featureMember?.[0]?.GeoObject;
                     const formatted = geoObj?.metaDataProperty?.GeocoderMetaData?.Address?.formatted || '';
-                    // formatted: "O'zbekiston, Toshkent, Bahodir ko'chasi, 2/1"
-                    // Mamlakat (birinchi qism) ni chiqarib tashlaymiz
                     const parts = formatted.split(',').map(s => s.trim()).filter(Boolean);
                     const humanAddr = parts.length > 1 ? parts.slice(1).join(', ') : formatted;
-                    // Koordinatalarni ham saqlash — admin map tugmalari aniq pin ochadi
                     setAddress(humanAddr ? `${humanAddr} (${coords})` : coords);
                 } catch {
                     setAddress(coords);
@@ -53,19 +49,17 @@ export default function Cart({ onNavigate, onPayment }) {
             },
             () => {
                 setGeoLoading(false);
-                alert('Joylashuvni aniqlash imkonsiz. Ruxsat bering yoki qo\'lda kiriting.');
+                alert(t('geoError'));
             },
             { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
         );
     };
 
-    // Barcha ochiq filiallarni yuklash + geolokatsiya
     useEffect(() => {
         branchesAPI.getAll().then(res => {
             setBranches((res.data || []).filter(b => b.isOpen));
         }).catch(() => {});
 
-        // Foydalanuvchi joylashuvini olish
         if (navigator.geolocation) {
             navigator.geolocation.getCurrentPosition(
                 pos => setUserLoc({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
@@ -75,7 +69,6 @@ export default function Cart({ onNavigate, onPayment }) {
         }
     }, []);
 
-    // Savat o'zgarganda — qaysi filiallarda mahsulot borligini tekshirish
     useEffect(() => {
         if (!items.length) return;
         branchesAPI.checkStock(items.map(i => ({ productId: i.productId, qty: i.qty })))
@@ -88,7 +81,6 @@ export default function Cart({ onNavigate, onPayment }) {
             .catch(() => { setAvailableBranchIds(null); setProductStatus([]); });
     }, [items]);
 
-    // Filial yoki lokatsiya o'zgarganda yetkazish narxini hisoblash
     useEffect(() => {
         if (deliveryType !== 'delivery' || !selectedBranch) return;
         const params = { branchId: selectedBranch, orderTotal: total };
@@ -100,9 +92,8 @@ export default function Cart({ onNavigate, onPayment }) {
         });
     }, [selectedBranch, userLoc, deliveryType, total]);
 
-    // Filtrlanagan filiallar ro'yxati
     const filteredBranches = availableBranchIds === null
-        ? branches  // hali tekshirilmagan — hammasini ko'rsat
+        ? branches
         : branches.filter(b => availableBranchIds.includes(b._id));
 
     if (items.length === 0) {
@@ -121,29 +112,26 @@ export default function Cart({ onNavigate, onPayment }) {
         );
     }
 
-    // Yetkazish narxi — deliveryCalc dan (API) yoki fallback
     const deliveryCost = deliveryType !== 'delivery' ? 0
         : deliveryCalc?.free ? 0
-        : deliveryCalc?.outOfRange ? null       // chegara tashqarida
+        : deliveryCalc?.outOfRange ? null
         : deliveryCalc?.cost != null ? deliveryCalc.cost
-        : (deliveryCalc === null ? 15000 : null); // hali hisoblanmagan
+        : (deliveryCalc === null ? 15000 : null);
 
     const maxBonusDiscount = Math.floor(total * 0.3);
     const bonusDiscount = useBonusPoints ? Math.min((user?.bonusPoints || 0), maxBonusDiscount) : 0;
     const grandTotal = total + (deliveryCost || 0) - bonusDiscount;
 
     const handleSubmit = async () => {
-        if (!phone || !name) return alert('Ism va telefon kiritilmagan');
-        if (deliveryType === 'delivery' && !address) return alert('Manzil kiritilmagan');
-        if (!selectedBranch) return alert('Filial tanlanmagan');
+        if (!phone || !name) return alert(t('namePhoneRequired'));
+        if (deliveryType === 'delivery' && !address) return alert(t('addressRequired'));
+        if (!selectedBranch) return alert(t('branchRequired'));
 
         setSubmitting(true);
         try {
             const { data } = await ordersAPI.create({
                 items: items.map(i => ({ productId: i.productId, qty: i.qty })),
-                deliveryType,
-                address,
-                phone,
+                deliveryType, address, phone,
                 customerName: name,
                 branchId: selectedBranch,
                 paymentMethod,
@@ -151,17 +139,11 @@ export default function Cart({ onNavigate, onPayment }) {
                 notes: comment,
             });
 
-            // Savatni bu yerda tozalamay, to'lov tasdiqlangandan keyin Payment.jsx da tozalanadi
             if (data.paymentUrl) {
                 const tg = window.Telegram?.WebApp;
                 if (tg?.openLink) {
-                    // Telegram ichida: tizim brauzerida ochish
-                    // Bu Click mobile app ni ishga tushiradi (deep link)
-                    // Mini app Telegram da ochiq qoladi — Payment.jsx polling ishlaydi
                     tg.openLink(data.paymentUrl);
                 } else {
-                    // Oddiy brauzer (noutbuk/web):
-                    // localStorage ga saqlash va Click sahifasiga o'tish
                     localStorage.setItem('pendingPaymentOrderId', data.order.id);
                     window.location.href = data.paymentUrl;
                     return;
@@ -170,7 +152,7 @@ export default function Cart({ onNavigate, onPayment }) {
 
             onPayment?.(data.order.id);
         } catch (err) {
-            alert(err.response?.data?.error || 'Xatolik yuz berdi');
+            alert(err.response?.data?.error || t('errorOccurred'));
         } finally {
             setSubmitting(false);
         }
@@ -212,13 +194,9 @@ export default function Cart({ onNavigate, onPayment }) {
                 <div className="form-group">
                     <label className="form-label">{t('branch')}</label>
                     {availableBranchIds !== null && filteredBranches.length === 0 ? (
-                        <div style={{
-                            padding: '14px', borderRadius: 12,
-                            background: 'rgba(231,76,60,0.07)', border: '1px solid rgba(231,76,60,0.25)',
-                            fontSize: 13, display: 'flex', flexDirection: 'column', gap: 10,
-                        }}>
+                        <div style={{ padding: '14px', borderRadius: 12, background: 'rgba(231,76,60,0.07)', border: '1px solid rgba(231,76,60,0.25)', fontSize: 13, display: 'flex', flexDirection: 'column', gap: 10 }}>
                             <div style={{ fontWeight: 700, color: 'var(--red)' }}>
-                                ⚠️ Hammasini birga topuvchi filial yo'q
+                                ⚠️ {t('noBranchForAll')}
                             </div>
                             <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
                                 {items.map(item => {
@@ -226,29 +204,22 @@ export default function Cart({ onNavigate, onPayment }) {
                                     const ok = st?.availableAnywhere;
                                     const max = st?.maxAvailableQty ?? 0;
                                     return (
-                                        <div key={item.productId} style={{
-                                            display: 'flex', alignItems: 'flex-start',
-                                            gap: 8, padding: '8px 10px', borderRadius: 10,
-                                            background: ok ? 'rgba(39,174,96,0.07)' : 'rgba(231,76,60,0.07)',
-                                        }}>
+                                        <div key={item.productId} style={{ display: 'flex', alignItems: 'flex-start', gap: 8, padding: '8px 10px', borderRadius: 10, background: ok ? 'rgba(39,174,96,0.07)' : 'rgba(231,76,60,0.07)' }}>
                                             <span style={{ fontSize: 15, flexShrink: 0 }}>{ok ? '⚠️' : '❌'}</span>
                                             <div style={{ flex: 1, minWidth: 0 }}>
-                                                <div style={{
-                                                    fontWeight: 600, color: 'var(--text)',
-                                                    fontSize: 12, lineHeight: 1.4,
-                                                    overflow: 'hidden', textOverflow: 'ellipsis',
-                                                    whiteSpace: 'nowrap',
-                                                }}>{item.name}</div>
+                                                <div style={{ fontWeight: 600, color: 'var(--text)', fontSize: 12, lineHeight: 1.4, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                                    {item.name}
+                                                </div>
                                                 <div style={{ fontSize: 11, marginTop: 2 }}>
                                                     {ok ? (
                                                         <span style={{ color: '#F39C12' }}>
-                                                            Kerak: {item.qty} ta · Mavjud (boshqa filialda): {max} ta
+                                                            {t('stockSplit').replace('{qty}', item.qty).replace('{max}', max)}
                                                         </span>
                                                     ) : (
                                                         <span style={{ color: 'var(--red)' }}>
                                                             {max > 0
-                                                                ? `Kerak: ${item.qty} ta · Maksimum mavjud: ${max} ta`
-                                                                : 'Hech qaysi filialda yo\'q'}
+                                                                ? t('stockMax').replace('{qty}', item.qty).replace('{max}', max)
+                                                                : t('stockNowhere')}
                                                         </span>
                                                     )}
                                                 </div>
@@ -258,7 +229,7 @@ export default function Cart({ onNavigate, onPayment }) {
                                 })}
                             </div>
                             <div style={{ fontSize: 11, color: 'var(--text-secondary)', lineHeight: 1.5 }}>
-                                💡 Miqdorni kamaytiring yoki ba'zi dorlarni olib tashlang
+                                💡 {t('stockHint')}
                             </div>
                         </div>
                     ) : (
@@ -272,8 +243,7 @@ export default function Cart({ onNavigate, onPayment }) {
                     )}
                     {availableBranchIds !== null && (
                         <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginTop: 4 }}>
-                            ✅ Faqat savatdagi dorisi bor filiallar ko'rsatilmoqda
-                            {' '}({filteredBranches.length} ta)
+                            ✅ {t('branchesFiltered')} ({filteredBranches.length})
                         </div>
                     )}
                 </div>
@@ -294,21 +264,15 @@ export default function Cart({ onNavigate, onPayment }) {
                         <div style={{ display: 'flex', gap: 8, alignItems: 'flex-start' }}>
                             <textarea className="form-textarea" style={{ flex: 1 }} value={address}
                                 onChange={e => setAddress(e.target.value)}
-                                placeholder="Tuman, ko'cha, uy raqami..." />
+                                placeholder={t('addressPlaceholder')} />
                             <button type="button" onClick={getLocation} disabled={geoLoading}
-                                style={{
-                                    flexShrink: 0, width: 44, height: 44, borderRadius: 12,
-                                    background: 'var(--green)', color: 'white', border: 'none',
-                                    fontSize: 20, cursor: 'pointer', display: 'flex',
-                                    alignItems: 'center', justifyContent: 'center',
-                                }}>
+                                style={{ flexShrink: 0, width: 44, height: 44, borderRadius: 12, background: 'var(--green)', color: 'white', border: 'none', fontSize: 20, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                                 {geoLoading ? (
                                     <svg width="20" height="20" viewBox="0 0 20 20" fill="none" style={{ animation: 'spin 1s linear infinite' }}>
                                         <circle cx="10" cy="10" r="8" stroke="white" strokeWidth="2.5" strokeDasharray="40" strokeDashoffset="10"/>
                                     </svg>
                                 ) : (
                                     <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-                                        <circle cx="10" cy="8" r="4" stroke="white" strokeWidth="2"/>
                                         <path d="M10 2C6.69 2 4 4.69 4 8c0 4.5 6 10 6 10s6-5.5 6-10c0-3.31-2.69-6-6-6z" stroke="white" strokeWidth="2" fill="none"/>
                                         <circle cx="10" cy="8" r="1.5" fill="white"/>
                                     </svg>
@@ -316,7 +280,7 @@ export default function Cart({ onNavigate, onPayment }) {
                             </button>
                         </div>
                         <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginTop: 4 }}>
-                            Tugma orqali joylashuvingizni avtomatik aniqlang
+                            {t('geoHint')}
                         </div>
                     </div>
                 )}
@@ -343,7 +307,7 @@ export default function Cart({ onNavigate, onPayment }) {
                         <div>
                             <div style={{ fontWeight: 700, fontSize: 14 }}>{t('useBonus')}</div>
                             <div style={{ fontSize: 12, color: 'var(--text-secondary)' }}>
-                                {user.bonusPoints.toLocaleString()} ball mavjud
+                                {user.bonusPoints.toLocaleString()} {t('bonusAvailable')}
                             </div>
                         </div>
                         <div className={`switch ${useBonusPoints ? 'on' : ''}`}
@@ -355,7 +319,7 @@ export default function Cart({ onNavigate, onPayment }) {
             <div className="section">
                 <div className="summary-block">
                     <div className="summary-row">
-                        <span>Tovarlar</span>
+                        <span>{t('cartItemsLabel')}</span>
                         <span>{total.toLocaleString()} сўм</span>
                     </div>
                     {deliveryType === 'delivery' && (
@@ -369,32 +333,32 @@ export default function Cart({ onNavigate, onPayment }) {
                                 )}
                             </span>
                             {deliveryCalc?.outOfRange ? (
-                                <span style={{ color: 'var(--red)', fontSize: 12, fontWeight: 700 }}>🚫 Yetkazilmaydi</span>
+                                <span style={{ color: 'var(--red)', fontSize: 12, fontWeight: 700 }}>🚫 {t('outOfRangeLabel')}</span>
                             ) : deliveryCost === 0 ? (
                                 <span className="free">{t('free')} 🎉</span>
                             ) : deliveryCost != null ? (
                                 <span style={{ fontWeight: 700 }}>{deliveryCost.toLocaleString()} сўм</span>
                             ) : (
-                                <span style={{ color: 'var(--text-secondary)', fontSize: 12 }}>Hisoblanmoqda...</span>
+                                <span style={{ color: 'var(--text-secondary)', fontSize: 12 }}>{t('calculating')}</span>
                             )}
                         </div>
                     )}
                     {bonusDiscount > 0 && (
                         <div className="summary-row">
-                            <span>Bonus</span>
+                            <span>{t('bonusLabel')}</span>
                             <span className="discount">−{bonusDiscount.toLocaleString()} сўм</span>
                         </div>
                     )}
                     <div className="summary-row total">
-                        <span>JAMI</span>
+                        <span>{t('grandTotal')}</span>
                         <span>{grandTotal.toLocaleString()} сўм</span>
                     </div>
                 </div>
 
                 {deliveryCalc?.outOfRange && deliveryType === 'delivery' ? (
                     <div style={{ padding: '14px', borderRadius: 14, textAlign: 'center', background: 'rgba(231,76,60,0.08)', border: '1px solid rgba(231,76,60,0.2)', color: 'var(--red)', fontSize: 13, fontWeight: 600 }}>
-                        🚫 Manzilingiz yetkazib berish chegarasidan tashqarida ({deliveryCalc.distKm} km)<br />
-                        <span style={{ fontWeight: 400, fontSize: 12 }}>Iltimos, "Olib ketish" rejimini tanlang yoki manzilni o'zgartiring</span>
+                        🚫 {t('outOfRangeWarn').replace('{km}', deliveryCalc.distKm)}<br />
+                        <span style={{ fontWeight: 400, fontSize: 12 }}>{t('pickupHint')}</span>
                     </div>
                 ) : (
                     <button className="btn-primary" onClick={handleSubmit} disabled={submitting}>

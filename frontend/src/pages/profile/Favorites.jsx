@@ -1,17 +1,19 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { userAPI } from '../../api/index';
 import DrugImage from '../../components/DrugImages';
 import { useCart } from '../../context/CartContext';
+import { useT } from '../../i18n';
 
 export default function Favorites({ onBack, onProduct }) {
+    const { t } = useT();
     const [favorites, setFavorites] = useState([]);
     const [loading, setLoading] = useState(true);
-    const { addToCart } = useCart();
+    useCart();
 
     useEffect(() => {
         userAPI.getFavorites()
             .then(res => setFavorites(res.data || []))
-            .catch(() => { })
+            .catch(() => {})
             .finally(() => setLoading(false));
     }, []);
 
@@ -24,9 +26,12 @@ export default function Favorites({ onBack, onProduct }) {
 
     return (
         <div className="page">
-            <div className="back-bar"><button className="back-btn" onClick={onBack}>←</button><h2>❤️ Sevimlilar</h2></div>
+            <div className="back-bar">
+                <button className="back-btn" onClick={onBack}>←</button>
+                <h2>❤️ {t('favorites')}</h2>
+            </div>
             {favorites.length === 0 ? (
-                <div className="empty-state"><div className="icon">🤍</div><h3>Sevimlilar bo'sh</h3></div>
+                <div className="empty-state"><div className="icon">🤍</div><h3>{t('favoritesEmpty')}</h3></div>
             ) : (
                 favorites.map(p => (
                     <div key={p._id} className="product-list-item fade-up" onClick={() => onProduct?.(p)}>

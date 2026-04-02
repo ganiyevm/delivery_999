@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { productsAPI } from '../api/index';
 import ProductCard from '../components/ProductCard';
 import { useT } from '../i18n';
@@ -42,7 +42,6 @@ export default function Catalog({ onProduct, initialCategory }) {
         fetchProducts(1, true);
     }, [search, category]);
 
-    // Infinite scroll
     const lastRef = useCallback(node => {
         if (loading) return;
         if (observerRef.current) observerRef.current.disconnect();
@@ -98,14 +97,16 @@ export default function Catalog({ onProduct, initialCategory }) {
             )}
 
             {isSearching && products.length > 0 && !loading && (
-                <div className="search-count">{products.length} ta dori topildi</div>
+                <div className="search-count">
+                    {t('foundCount').replace('{n}', products.length)}
+                </div>
             )}
 
             {products.length === 0 && !loading ? (
                 <div className="empty-state">
                     <div className="icon">🔍</div>
                     <h3>{t('noProducts')}</h3>
-                    <p>Boshqa so'z bilan qidiring</p>
+                    <p>{t('tryOtherSearch')}</p>
                 </div>
             ) : isSearching ? (
                 <div className="search-results-list">
