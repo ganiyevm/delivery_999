@@ -1,15 +1,13 @@
 FROM node:20-alpine AS frontend-build
 WORKDIR /app/frontend
-COPY frontend/package*.json frontend/.npmrc* ./
-RUN npm ci --legacy-peer-deps
 COPY frontend/ .
+RUN npm install --legacy-peer-deps
 RUN npm run build
 
 FROM node:20-alpine AS admin-build
 WORKDIR /app/admin
-COPY admin/package*.json ./
-RUN npm ci
 COPY admin/ .
+RUN npm install
 RUN npm run build
 
 FROM node:20-alpine
