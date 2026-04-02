@@ -176,7 +176,7 @@ class ImportService {
             totalRows: dataRows.length,
             successRows: successCount,
             errorRows: errors.length,
-            errors: errors.slice(0, 100), // Max 100 ta xato saqlash
+            importErrors: errors.slice(0, 100), // Max 100 ta xato saqlash
             importDate: new Date(),
         });
 

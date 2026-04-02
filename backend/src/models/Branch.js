@@ -3,7 +3,6 @@ const mongoose = require('mongoose');
 const branchSchema = new mongoose.Schema({
     number: {
         type: Number,
-        unique: true,
         required: true,
     },
     name: { type: String, required: true },
