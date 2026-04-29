@@ -1,9 +1,34 @@
 const router = require('express').Router();
 const crypto = require('crypto');
 const https = require('https');
+const axios = require('axios');
 const ClickService = require('../services/click.service');
 const PaymeService = require('../services/payme.service');
 const Order = require('../models/Order');
+
+// ─── EFES gateway forwarding ───
+// Bitta merchant (apteka999) test sifatida ikkala loyiha uchun ishlatiladi.
+// merchant_trans_id/order_id prefix orqali EFES backend'ga yo'naltiriladi.
+const EFES_BACKEND_URL = process.env.EFES_BACKEND_URL || '';
+
+async function forwardToEfes(path, body, originalReq = null) {
+    if (!EFES_BACKEND_URL) return null;
+    try {
+        // Authorization header'ini ham uzatish — Payme webhook auth EFES tomonida tekshiriladi
+        const headers = { 'content-type': 'application/json' };
+        if (originalReq?.headers?.authorization) {
+            headers.authorization = originalReq.headers.authorization;
+        }
+        const { data } = await axios.post(`${EFES_BACKEND_URL}${path}`, body, {
+            headers,
+            timeout: 8000,
+        });
+        return data;
+    } catch (err) {
+        console.error('[EFES FORWARD]', path, 'error:', err.response?.status, err.message);
+        return null;
+    }
+}
 
 // Click API ga GET so'rov — har qanday path uchun
 function clickApiGet(path) {
@@ -43,17 +68,51 @@ router.get('/click/prepare', (req, res) => res.json({ error: 0, error_note: 'OK'
 router.get('/click/complete', (req, res) => res.json({ error: 0, error_note: 'OK' }));
 
 router.post('/click/prepare', async (req, res) => {
+    if (req.body?.merchant_trans_id?.startsWith('EFES-')) {
+        const data = await forwardToEfes('/api/payment/click/prepare', req.body);
+        return res.json(data || {
+            error: -9,
+            error_note: 'EFES backend unreachable',
+            click_trans_id: req.body.click_trans_id,
+            merchant_trans_id: req.body.merchant_trans_id,
+        });
+    }
     const result = await ClickService.prepare(req.body);
     res.json(result);
 });
 
 router.post('/click/complete', async (req, res) => {
+    if (req.body?.merchant_trans_id?.startsWith('EFES-')) {
+        const data = await forwardToEfes('/api/payment/click/complete', req.body);
+        return res.json(data || {
+            error: -9,
+            error_note: 'EFES backend unreachable',
+            click_trans_id: req.body.click_trans_id,
+            merchant_trans_id: req.body.merchant_trans_id,
+        });
+    }
     const result = await ClickService.complete(req.body);
     res.json(result);
 });
 
 // ─── Payme (JSON-RPC) ───
+// order_id — CheckPerformTransaction / CreateTransaction'da bo'ladi
+// params.id — boshqa metodlarda (transaction ID); apteka999 DB'da topilmasa EFES'ga forward
 router.post('/payme', async (req, res) => {
+    const orderId = req.body?.params?.account?.order_id;
+    const transId = req.body?.params?.id;
+
+    if (orderId && typeof orderId === 'string' && orderId.startsWith('EFES-')) {
+        const data = await forwardToEfes('/api/payment/payme', req.body, req);
+        if (data) return res.json(data);
+    } else if (!orderId && transId && EFES_BACKEND_URL) {
+        const existsHere = await Order.exists({ paymeTransId: transId });
+        if (!existsHere) {
+            const data = await forwardToEfes('/api/payment/payme', req.body, req);
+            if (data) return res.json(data);
+        }
+    }
+
     const result = await PaymeService.handleRequest(req);
     res.json(result);
 });
