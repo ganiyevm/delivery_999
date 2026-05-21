@@ -35,6 +35,7 @@ const limiter = rateLimit({
     windowMs: 15 * 60 * 1000, // 15 daqiqa
     max: 200,
     message: { error: 'Juda ko\'p so\'rov. 15 daqiqadan keyin qayta urinib ko\'ring.' },
+    skip: (req) => req.path.startsWith('/sync/'), // sync agent API key bilan himoyalangan
 });
 app.use('/api/', limiter);
 
@@ -58,6 +59,7 @@ app.use('/api/orders', require('./src/routes/orders'));
 app.use('/api/user', require('./src/routes/user'));
 app.use('/api/payment', require('./src/routes/payment'));
 app.use('/api/import', require('./src/routes/import'));
+app.use('/api/sync', require('./src/routes/sync'));
 app.use('/api/analytics', require('./src/routes/analytics'));
 app.use('/api/admin', require('./src/routes/admin'));
 app.use('/api/delivery', require('./src/routes/delivery'));

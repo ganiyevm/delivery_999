@@ -21,6 +21,7 @@ const stockSchema = new mongoose.Schema({
         default: 0,
         min: 0,
     },
+    expiryDate: { type: Date, default: null }, // Eng yaqin tugaydigan partiya sanasi
     updatedAt: { type: Date, default: Date.now },
 });
 
