@@ -35,7 +35,10 @@ const productSchema = new mongoose.Schema({
     timestamps: true,
 });
 
-// Text index qidiruv uchun
+// Text index qidiruv uchun (foydalanuvchining qidiruvi)
 productSchema.index({ name: 'text', ingredient: 'text', manufacturer: 'text' });
+
+// Sync uchun: name bo'yicha aniq qidiruv ($in operator) — collection scan'ni oldini olish
+productSchema.index({ name: 1 });
 
 module.exports = mongoose.model('Product', productSchema);
