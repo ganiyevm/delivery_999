@@ -42,6 +42,30 @@ export default function Catalog({ onProduct, initialCategory }) {
         fetchProducts(1, true);
     }, [search, category]);
 
+    // App qaytib ochilganda yangilash + har 60 sekundda fonda jim yangilash
+    useEffect(() => {
+        const onVisible = () => {
+            if (document.visibilityState === 'visible') {
+                fetchProducts(1, true);
+            }
+        };
+        document.addEventListener('visibilitychange', onVisible);
+        window.addEventListener('focus', onVisible);
+
+        // Periodik yangilash — faqat app fokuda bo'lsa (batareya saqlash uchun)
+        const intervalId = setInterval(() => {
+            if (document.visibilityState === 'visible') {
+                fetchProducts(1, true);
+            }
+        }, 60_000); // 60 sekund
+
+        return () => {
+            document.removeEventListener('visibilitychange', onVisible);
+            window.removeEventListener('focus', onVisible);
+            clearInterval(intervalId);
+        };
+    }, [fetchProducts]);
+
     const lastRef = useCallback(node => {
         if (loading) return;
         if (observerRef.current) observerRef.current.disconnect();

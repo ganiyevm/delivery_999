@@ -194,11 +194,15 @@ export default function Branches() {
     const listRef = useRef(null);
     const cardRefs = useRef({});
 
-    useEffect(() => {
+    const loadBranches = () => {
         branchesAPI.getAll()
             .then(res => setBranches(res.data || []))
             .catch(() => {})
             .finally(() => setLoading(false));
+    };
+
+    useEffect(() => {
+        loadBranches();
 
         if (navigator.geolocation) {
             setLocLoading(true);
@@ -211,6 +215,25 @@ export default function Branches() {
                 { enableHighAccuracy: true, timeout: 8000 }
             );
         }
+    }, []);
+
+    // App qaytib ochilganda filiallarni yangilash + har 5 daqiqada
+    useEffect(() => {
+        const onVisible = () => {
+            if (document.visibilityState === 'visible') loadBranches();
+        };
+        document.addEventListener('visibilitychange', onVisible);
+        window.addEventListener('focus', onVisible);
+
+        const intervalId = setInterval(() => {
+            if (document.visibilityState === 'visible') loadBranches();
+        }, 300_000); // 5 daqiqa (filial ish soatlari kam o'zgaradi)
+
+        return () => {
+            document.removeEventListener('visibilitychange', onVisible);
+            window.removeEventListener('focus', onVisible);
+            clearInterval(intervalId);
+        };
     }, []);
 
     const sorted = useMemo(() => {

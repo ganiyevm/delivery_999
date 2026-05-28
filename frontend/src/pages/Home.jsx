@@ -23,13 +23,36 @@ export default function Home({ onNavigate, onProduct, onScanner }) {
     const [popular, setPopular] = useState([]);
     const [branchCount, setBranchCount] = useState(20);
 
-    useEffect(() => {
+    const loadHomeData = () => {
         productsAPI.getAll({ sort: 'popular', limit: 6 })
             .then(res => setPopular(res.data.products || []))
             .catch(() => {});
         branchesAPI.getAll()
             .then(res => { if (res.data?.length) setBranchCount(res.data.length); })
             .catch(() => {});
+    };
+
+    useEffect(() => {
+        loadHomeData();
+    }, []);
+
+    // App qaytib ochilganda yangilash + har 120 sekundda fonda jim yangilash
+    useEffect(() => {
+        const onVisible = () => {
+            if (document.visibilityState === 'visible') loadHomeData();
+        };
+        document.addEventListener('visibilitychange', onVisible);
+        window.addEventListener('focus', onVisible);
+
+        const intervalId = setInterval(() => {
+            if (document.visibilityState === 'visible') loadHomeData();
+        }, 120_000); // 2 daqiqa (bosh sahifada kam yangilanish kerak)
+
+        return () => {
+            document.removeEventListener('visibilitychange', onVisible);
+            window.removeEventListener('focus', onVisible);
+            clearInterval(intervalId);
+        };
     }, []);
 
     const bonusProgress = user ? Math.min((user.bonusPoints || 0) / 50, 100) : 0;
