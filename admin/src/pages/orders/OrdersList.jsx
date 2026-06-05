@@ -422,8 +422,24 @@ export default function OrdersList() {
                                     <strong>{t('note')}:</strong> {selected.notes}
                                 </p>
                             )}
+                            {selected.status === 'pending_operator' && (
+                                <div style={{ margin: '12px 0', padding: '12px', borderRadius: 12, background: 'rgba(39,174,96,0.08)', border: '1px solid rgba(39,174,96,0.25)' }}>
+                                    <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 8 }}>
+                                        💊 Dorilarni kassaga urib, tasdiqlang:
+                                    </div>
+                                    <button className="btn btn-primary" style={{ width: '100%', padding: '10px' }}
+                                        onClick={async () => {
+                                            try {
+                                                await api.patch(`/admin/orders/${selected._id}/operator-confirm`);
+                                                setSelected(null); fetchOrders(filters);
+                                            } catch (err) { alert(err.response?.data?.error || 'Xato'); }
+                                        }}>
+                                        ✅ Tasdiqlash — klientga to'lov xabari yuboriladi
+                                    </button>
+                                </div>
+                            )}
                             <p><strong>{t('payment')}:</strong> {selected.paymentMethod} ({selected.paymentStatus})
-                                {selected.paymentStatus === 'pending' && (
+                                {selected.paymentStatus === 'pending' && selected.status !== 'pending_operator' && (
                                     <button className="btn btn-primary" style={{ marginLeft: 8, padding: '2px 10px', fontSize: 12 }}
                                         onClick={async () => {
                                             try {

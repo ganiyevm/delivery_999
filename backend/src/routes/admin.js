@@ -80,6 +80,52 @@ router.get('/orders', async (req, res, next) => {
     } catch (error) { next(error); }
 });
 
+// Operator admin paneldan buyurtmani tasdiqlash → klientga to'lov xabari
+router.patch('/orders/:id/operator-confirm', adminAuth, async (req, res, next) => {
+    try {
+        const order = await Order.findById(req.params.id).populate('branch');
+        if (!order) return res.status(404).json({ error: 'Buyurtma topilmadi' });
+        if (order.status !== 'pending_operator') {
+            return res.status(400).json({ error: 'Faqat pending_operator holatidagi buyurtmani tasdiqlash mumkin' });
+        }
+
+        // Naqd to'lov → to'g'ridan-to'g'ri confirmed
+        if (order.paymentMethod === 'cash') {
+            order.status = 'confirmed';
+            order.confirmedAt = new Date();
+            order.statusHistory.push({ status: 'confirmed', changedBy: 'operator', changedAt: new Date(), note: `Admin panel — naqd` });
+            for (const item of order.items) {
+                await Stock.findOneAndUpdate({ product: item.product, branch: order.branch._id }, { $inc: { qty: -item.qty } });
+            }
+            await order.save();
+            telegramService.notifyUser(order.telegramId, 'confirmed', order).catch(() => {});
+            return res.json({ status: 'confirmed' });
+        }
+
+        // Onlayn to'lov → awaiting_payment + klientga to'lov xabari
+        order.status = 'awaiting_payment';
+        order.statusHistory.push({ status: 'awaiting_payment', changedBy: 'operator', changedAt: new Date(), note: 'Admin panel — bronlandi' });
+        for (const item of order.items) {
+            await Stock.findOneAndUpdate({ product: item.product, branch: order.branch._id }, { $inc: { qty: -item.qty } });
+        }
+        await order.save();
+
+        // Klientga mini-app orqali to'lov xabari
+        if (order.telegramId) {
+            const webAppUrl = process.env.WEBAPP_URL || `https://t.me/${process.env.BOT_USERNAME}`;
+            await telegramService.sendMessage(order.telegramId,
+                `✅ Buyurtmangiz <b>#${order.orderNumber}</b> bronlandi!\n\n` +
+                `💊 Dorilar tayyor — to'lovni amalga oshiring:\n` +
+                `💵 Jami: <b>${order.total.toLocaleString()} so'm</b>\n\n` +
+                `👇 Ilovani oching va to'lang:`,
+                { reply_markup: { inline_keyboard: [[{ text: `💳 To'lash — ${order.total.toLocaleString()} so'm`, web_app: { url: webAppUrl } }]] } }
+            );
+        }
+
+        res.json({ status: 'awaiting_payment' });
+    } catch (error) { next(error); }
+});
+
 // To'lovni qo'lda tasdiqlash (Click webhook localhost ga yetib bormasa)
 router.patch('/orders/:id/confirm-payment', async (req, res, next) => {
     try {
