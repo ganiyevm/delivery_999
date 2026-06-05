@@ -170,12 +170,12 @@ router.post('/admin/login', async (req, res, next) => {
 
         const isSuperAdmin = account.role === 'super_admin';
         const token = jwt.sign(
-            { adminId: account._id, username: account.username, isAdmin: true, isSuperAdmin, role: account.role },
+            { adminId: account._id, username: account.username, isAdmin: true, isSuperAdmin, role: account.role, branchId: account.branchId || null },
             process.env.ADMIN_JWT_SECRET,
             { expiresIn: '8h' }
         );
 
-        res.json({ token, admin: { username: account.username, role: account.role, isSuperAdmin, fullName: account.fullName } });
+        res.json({ token, admin: { username: account.username, role: account.role, isSuperAdmin, fullName: account.fullName, branchId: account.branchId || null } });
     } catch (error) {
         next(error);
     }

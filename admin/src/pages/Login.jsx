@@ -24,6 +24,7 @@ export default function Login() {
             localStorage.setItem('admin_token', data.token);
             localStorage.setItem('admin_role', data.admin?.role || 'operator');
             localStorage.setItem('is_super_admin', data.admin?.isSuperAdmin ? '1' : '0');
+            localStorage.setItem('admin_branch_id', data.admin?.branchId || '');
             window.location.href = '/admin/';
         } catch (err) {
             setError(err.response?.data?.error || t('error'));

@@ -6,7 +6,7 @@ const BonusService = require('../../backend/src/services/bonus.service');
 const telegramService = require('../../backend/src/services/telegram.service');
 
 module.exports = (bot) => {
-    // ═══ TASDIQLASH ═══
+    // ═══ TASDIQLASH — dorilar bronlandi, klientga to'lov havolasi yuboriladi ═══
     bot.callbackQuery(/^confirm_(.+)$/, async (ctx) => {
         try {
             const orderId = ctx.match[1];
@@ -17,44 +17,61 @@ module.exports = (bot) => {
                 return ctx.answerCallbackQuery('Bu buyurtma allaqachon jarayonda');
             }
 
-            // Status → confirmed
-            order.status = 'confirmed';
-            order.operatorId = ctx.from.id;
-            order.confirmedAt = new Date();
-            order.statusHistory.push({
-                status: 'confirmed',
-                changedBy: 'operator',
-                changedAt: new Date(),
-                note: `Operator: ${ctx.from.first_name}`,
-            });
+            // Naqd to'lov → to'g'ridan-to'g'ri confirmed
+            if (order.paymentMethod === 'cash') {
+                order.status = 'confirmed';
+                order.operatorId = ctx.from.id;
+                order.confirmedAt = new Date();
+                order.statusHistory.push({ status: 'confirmed', changedBy: 'operator', changedAt: new Date(), note: `Naqd — ${ctx.from.first_name}` });
+                for (const item of order.items) {
+                    await Stock.findOneAndUpdate({ product: item.product, branch: order.branch }, { $inc: { qty: -item.qty } });
+                }
+                await order.save();
+                await ctx.editMessageText(
+                    `✅ <b>Tasdiqlandi (naqd)</b> — ${order.customerName}\n📦 #${order.orderNumber}\n💵 ${order.total.toLocaleString()} so'm\n👤 ${ctx.from.first_name}`,
+                    { parse_mode: 'HTML', reply_markup: new InlineKeyboard().text('🚗 Kuryer yo\'lga chiqdi', `dispatch_${order._id}`) }
+                );
+                await telegramService.notifyUser(order.telegramId, 'confirmed', order);
+                return ctx.answerCallbackQuery('✅ Tasdiqlandi!');
+            }
 
-            // Stock dan ayirish
+            // Onlayn to'lov → awaiting_payment + klientga to'lov havolasi
+            order.status = 'awaiting_payment';
+            order.operatorId = ctx.from.id;
+            order.statusHistory.push({ status: 'awaiting_payment', changedBy: 'operator', changedAt: new Date(), note: `Bronlandi — ${ctx.from.first_name}` });
+
+            // Stock bronlash (qty ayiriladi, rad etilsa qaytariladi)
             for (const item of order.items) {
-                await Stock.findOneAndUpdate(
-                    { product: item.product, branch: order.branch },
-                    { $inc: { qty: -item.qty } }
+                await Stock.findOneAndUpdate({ product: item.product, branch: order.branch }, { $inc: { qty: -item.qty } });
+            }
+            await order.save();
+
+            // To'lov havolasi yaratish
+            let paymentUrl = '';
+            const botUrl = process.env.WEBAPP_URL || `https://t.me/${process.env.BOT_USERNAME}`;
+            if (order.paymentMethod === 'click') {
+                paymentUrl = `https://my.click.uz/services/pay?service_id=${process.env.CLICK_SERVICE_ID}&merchant_id=${process.env.CLICK_MERCHANT_ID}&amount=${order.total}&transaction_param=${order.orderNumber}&merchant_user_id=${process.env.CLICK_MERCHANT_USER_ID}&return_url=${encodeURIComponent(botUrl)}`;
+            } else if (order.paymentMethod === 'payme') {
+                const paymeData = Buffer.from(`m=${process.env.PAYME_MERCHANT_ID};ac.order_id=${order.orderNumber};a=${order.total * 100};l=uz`).toString('base64');
+                paymentUrl = `https://checkout.paycom.uz/${paymeData}`;
+            }
+
+            // Klientga to'lov xabari yuborish
+            if (order.telegramId && paymentUrl) {
+                const payKeyboard = { inline_keyboard: [[{ text: `💳 To'lash — ${order.total.toLocaleString()} so'm`, url: paymentUrl }]] };
+                await telegramService.sendMessage(order.telegramId,
+                    `✅ Buyurtmangiz <b>#${order.orderNumber}</b> bronlandi!\n\nDorilar tayyor — to'lovni amalga oshiring:\n💵 Jami: <b>${order.total.toLocaleString()} so'm</b>`,
+                    { reply_markup: payKeyboard }
                 );
             }
 
-            await order.save();
-
-            // Xabarni yangilash
-            const keyboard = new InlineKeyboard()
-                .text('🚗 Kuryer yo\'lga chiqdi', `dispatch_${order._id}`);
-
+            // Operator xabarini yangilash
             await ctx.editMessageText(
-                `✅ <b>Tasdiqlandi</b> — ${order.customerName}\n` +
-                `📦 #${order.orderNumber}\n` +
-                `💵 ${order.total.toLocaleString()} сўм\n` +
-                `👤 Operator: ${ctx.from.first_name}\n` +
-                `🕐 ${new Date().toLocaleTimeString('uz-UZ', { hour: '2-digit', minute: '2-digit' })}`,
-                { parse_mode: 'HTML', reply_markup: keyboard }
+                `⏳ <b>To'lov kutilmoqda</b> — ${order.customerName}\n📦 #${order.orderNumber}\n💵 ${order.total.toLocaleString()} so'm\n👤 ${ctx.from.first_name} bronladi\n🕐 ${new Date().toLocaleTimeString('uz-UZ', { hour: '2-digit', minute: '2-digit' })}`,
+                { parse_mode: 'HTML' }
             );
 
-            // Mijozga bildirishnoma
-            await telegramService.notifyUser(order.telegramId, 'confirmed', order);
-
-            await ctx.answerCallbackQuery('✅ Tasdiqlandi!');
+            await ctx.answerCallbackQuery('✅ Klientga to\'lov havolasi yuborildi!');
         } catch (error) {
             console.error('Confirm error:', error);
             await ctx.answerCallbackQuery('Xato yuz berdi');

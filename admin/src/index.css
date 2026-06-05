@@ -922,3 +922,5 @@ a { color: var(--blue-light); text-decoration: none; }
   .bi-bottom-row { grid-template-columns: 1fr; }
   .bi-topbar { flex-direction: column; align-items: flex-start; }
 }
+
+@keyframes pulse { 0%,100% { opacity:1; transform:scale(1); } 50% { opacity:.85; transform:scale(1.05); } }

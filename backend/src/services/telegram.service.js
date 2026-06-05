@@ -73,21 +73,27 @@ class TelegramService {
             `├ ${i.productName} ×${i.qty} — ${i.price.toLocaleString()} so'm`
         ).join('\n');
 
+        const deliveryLine = order.deliveryType === 'yandex'
+            ? `🚚 Yandex (${order.yandexDropType === 'door' ? 'eshikka' : 'kirishga'}) — ${order.deliverySlot || ''}`
+            : order.deliveryType === 'pickup' ? '🏪 O\'zi olib ketadi' : '🚚 Yetkazib berish';
+        const payLine = order.paymentMethod === 'cash'
+            ? '💵 Aptekada to\'lov (naqd)'
+            : `💳 ${order.paymentMethod === 'click' ? 'Click' : 'Payme'} — tasdiqdan keyin yuboriladi`;
+        const addrLine = order.address ? `📍 ${order.address}${order.apartment ? ', xon. ' + order.apartment : ''}${order.floor ? ', ' + order.floor + '-qavat' : ''}` : '';
+
         const text =
 `━━━━━━━━━━━━━━━━━━━━━━━
 🆕 YANGI BUYURTMA <b>#${order.orderNumber}</b>
 ━━━━━━━━━━━━━━━━━━━━━━━
 👤 ${order.customerName}
 📞 ${order.phone}
-📍 ${order.address}
-
+${addrLine ? addrLine + '\n' : ''}
 💊 DORILAR:
 ${itemsList}
 └─────────────────────────
-
-🚚 Yetkazib berish: ${order.deliveryCost.toLocaleString()} so'm
+${deliveryLine}
+${payLine}
 💵 JAMI: <b>${order.total.toLocaleString()} so'm</b>
-💳 ${order.paymentMethod === 'click' ? 'Click' : 'Payme'} ✅ TO'LANGAN
 🕐 ${new Date().toLocaleTimeString('uz-UZ', { hour: '2-digit', minute: '2-digit' })} | Apteka №${String(branch.number).padStart(3, '0')}
 ━━━━━━━━━━━━━━━━━━━━━━━`;
 

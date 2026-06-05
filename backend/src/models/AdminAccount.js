@@ -9,6 +9,7 @@ const schema = new mongoose.Schema({
         enum: ['super_admin', 'admin', 'operator', 'pharmacist', 'analyst'],
         default: 'operator',
     },
+    branchId:    { type: mongoose.Schema.Types.ObjectId, ref: 'Branch', default: null },
     isActive:    { type: Boolean, default: true },
     createdBy:   { type: String, default: 'system' },
     lastLoginAt: { type: Date },

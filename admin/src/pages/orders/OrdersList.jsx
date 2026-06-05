@@ -173,6 +173,60 @@ export default function OrdersList() {
     const [newStatus, setNewStatus] = useState('');
     const [statusNote, setStatusNote] = useState('');
     const [lastUpdated, setLastUpdated] = useState(null);
+    const [newOrderCount, setNewOrderCount] = useState(0);
+    const knownOrderIds = useRef(new Set());
+    const audioCtx = useRef(null);
+    const alarmInterval = useRef(null);
+
+    // Brauzer bildirishnoma ruxsati so'rash
+    useEffect(() => {
+        if (Notification.permission === 'default') Notification.requestPermission();
+    }, []);
+
+    const stopAlarm = useCallback(() => {
+        if (alarmInterval.current) {
+            clearInterval(alarmInterval.current);
+            alarmInterval.current = null;
+        }
+    }, []);
+
+    const playBeep = () => {
+        try {
+            const ctx = audioCtx.current || (audioCtx.current = new (window.AudioContext || window.webkitAudioContext)());
+            // Uchta ketma-ket baland signal
+            [0, 0.22, 0.44].forEach(delay => {
+                const osc = ctx.createOscillator();
+                const gain = ctx.createGain();
+                osc.connect(gain); gain.connect(ctx.destination);
+                osc.frequency.value = 960;
+                osc.type = 'square';
+                gain.gain.setValueAtTime(0.0, ctx.currentTime + delay);
+                gain.gain.linearRampToValueAtTime(0.7, ctx.currentTime + delay + 0.02);
+                gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + delay + 0.2);
+                osc.start(ctx.currentTime + delay);
+                osc.stop(ctx.currentTime + delay + 0.22);
+            });
+        } catch (_) {}
+    };
+
+    const startAlarm = useCallback(() => {
+        stopAlarm();
+        playBeep(); // darhol
+        alarmInterval.current = setInterval(playBeep, 3000); // har 3 soniya
+    }, [stopAlarm]);
+
+    // Komponent yopilganda alarm to'xtatilsin
+    useEffect(() => () => stopAlarm(), [stopAlarm]);
+
+    const showBrowserNotification = (count) => {
+        if (Notification.permission !== 'granted') return;
+        new Notification('🔔 Apteka999 — Yangi buyurtma!', {
+            body: `${count} ta yangi buyurtma — tekshiring`,
+            icon: '/logo.png',
+            tag: 'new-order',
+            renotify: true,
+        });
+    };
 
     useEffect(() => {
         api.get('/admin/branches').then(r => setBranches(r.data || [])).catch(() => {});
@@ -186,9 +240,23 @@ export default function OrdersList() {
         if (f.dateFrom) params.dateFrom = f.dateFrom;
         if (f.dateTo)   params.dateTo   = f.dateTo;
         api.get('/admin/orders', { params }).then(r => {
-            setOrders(r.data.orders || []);
+            const fetched = r.data.orders || [];
+            setOrders(fetched);
             setPagination(r.data.pagination || {});
             setLastUpdated(new Date());
+
+            // Yangi pending_operator buyurtmalarni aniqlash
+            if (knownOrderIds.current.size > 0) {
+                const newOnes = fetched.filter(o =>
+                    o.status === 'pending_operator' && !knownOrderIds.current.has(o._id)
+                );
+                if (newOnes.length > 0) {
+                    setNewOrderCount(c => c + newOnes.length);
+                    startAlarm();
+                    showBrowserNotification(newOnes.length);
+                }
+            }
+            fetched.forEach(o => knownOrderIds.current.add(o._id));
         }).catch(() => {});
     };
 
@@ -212,6 +280,12 @@ export default function OrdersList() {
             <div className="topbar">
                 <h2>📦 {t('orders')}</h2>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                    {newOrderCount > 0 && (
+                        <button onClick={() => { stopAlarm(); setNewOrderCount(0); setFilters(f => ({ ...f, status: 'pending_operator', page: 1 })); }}
+                            style={{ background: '#e74c3c', color: 'white', border: 'none', borderRadius: 20, padding: '5px 14px', fontWeight: 700, fontSize: 13, cursor: 'pointer', animation: 'pulse 1s infinite' }}>
+                            🔔 {newOrderCount} yangi buyurtma — Ko'rdim
+                        </button>
+                    )}
                     {lastUpdated && <span style={{ fontSize: 12, color: '#888' }}>🔄 {lastUpdated.toLocaleTimeString()}</span>}
                     <button className="btn" onClick={() => fetchOrders(filters)}>↻ {t('refresh')}</button>
                     <button className="btn" onClick={async () => {

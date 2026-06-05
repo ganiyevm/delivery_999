@@ -36,7 +36,12 @@ router.get('/orders', async (req, res, next) => {
         const { status, branch, date, dateFrom, dateTo, search, page = 1, limit = 20 } = req.query;
         const filter = {};
         if (status) filter.status = status;
-        if (branch) filter.branch = branch;
+        // Operator faqat o'z filialini ko'ra oladi
+        if (req.adminRole === 'operator' && req.adminBranchId) {
+            filter.branch = req.adminBranchId;
+        } else if (branch) {
+            filter.branch = branch;
+        }
         if (dateFrom || dateTo) {
             filter.createdAt = {};
             if (dateFrom) filter.createdAt.$gte = new Date(dateFrom);
@@ -328,6 +333,17 @@ router.put('/branches/:id', async (req, res, next) => {
     } catch (error) { next(error); }
 });
 
+// Agent ulanganda/uzilganda isSynced'ni almashtirish
+router.patch('/branches/:id/toggle-sync', async (req, res, next) => {
+    try {
+        const branch = await Branch.findById(req.params.id);
+        if (!branch) return res.status(404).json({ error: 'Topilmadi' });
+        branch.isSynced = !branch.isSynced;
+        await branch.save();
+        res.json({ isSynced: branch.isSynced });
+    } catch (error) { next(error); }
+});
+
 router.patch('/branches/:id/toggle', async (req, res, next) => {
     try {
         const branch = await Branch.findById(req.params.id);
@@ -436,13 +452,14 @@ router.get('/accounts', superOnly, async (req, res, next) => {
 
 router.post('/accounts', superOnly, async (req, res, next) => {
     try {
-        const { username, password, role, fullName } = req.body;
+        const { username, password, role, fullName, branchId } = req.body;
         if (!username || !password || !role) return res.status(400).json({ error: 'username, password, role kerak' });
         const existing = await AdminAccount.findOne({ username });
         if (existing) return res.status(400).json({ error: 'Bu login band' });
         const passwordHash = await bcrypt.hash(password, 10);
         const account = await AdminAccount.create({
             username, passwordHash, role, fullName: fullName || '',
+            branchId: branchId || null,
             createdBy: req.adminUsername || 'super_admin',
         });
         res.status(201).json({ _id: account._id, username: account.username, role: account.role, fullName: account.fullName, isActive: account.isActive });
@@ -451,11 +468,12 @@ router.post('/accounts', superOnly, async (req, res, next) => {
 
 router.put('/accounts/:id', superOnly, async (req, res, next) => {
     try {
-        const { password, role, fullName, isActive } = req.body;
+        const { password, role, fullName, isActive, branchId } = req.body;
         const update = {};
         if (role) update.role = role;
         if (fullName !== undefined) update.fullName = fullName;
         if (isActive !== undefined) update.isActive = isActive;
+        if (branchId !== undefined) update.branchId = branchId || null;
         if (password) update.passwordHash = await bcrypt.hash(password, 10);
         const account = await AdminAccount.findByIdAndUpdate(req.params.id, update, { new: true }).select('-passwordHash');
         if (!account) return res.status(404).json({ error: 'Topilmadi' });

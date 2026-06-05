@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { ordersAPI, branchesAPI } from '../api/index';
 import api from '../api/axios';
 import DrugImage from '../components/DrugImages';
@@ -94,6 +94,7 @@ export default function Cart({ onNavigate, onPayment }) {
     const [productStatus, setProductStatus] = useState([]);
     const [selectedBranch, setSelectedBranch] = useState('');
     const [submitting, setSubmitting] = useState(false);
+    const [submitted, setSubmitted] = useState(null); // { orderNumber }
     const [userLoc, setUserLoc] = useState(null);
     const [deliveryCalc, setDeliveryCalc] = useState(null);
 
@@ -151,6 +152,25 @@ export default function Cart({ onNavigate, onPayment }) {
         ? branches
         : branches.filter(b => availableBranchIds.includes(b._id));
 
+    if (submitted) {
+        return (
+            <div className="page">
+                <div className="empty-state" style={{ paddingTop: 80 }}>
+                    <div className="icon">✅</div>
+                    <h3>Buyurtma qabul qilindi!</h3>
+                    <p style={{ fontSize: 14, color: 'var(--text-secondary)', lineHeight: 1.6 }}>
+                        <b>#{submitted.orderNumber}</b> — apteka xodimi dorilarni tekshiradi.<br />
+                        Tayyor bo'lgach botdan to'lov havolasi yuboriladi.
+                    </p>
+                    <button className="btn-primary" style={{ maxWidth: 220, margin: '20px auto 0' }}
+                        onClick={() => onNavigate('home')}>
+                        Bosh sahifaga qaytish
+                    </button>
+                </div>
+            </div>
+        );
+    }
+
     if (items.length === 0) {
         return (
             <div className="page">
@@ -199,18 +219,8 @@ export default function Cart({ onNavigate, onPayment }) {
                 notes: comment,
             });
 
-            if (data.paymentUrl) {
-                const tg = window.Telegram?.WebApp;
-                if (tg?.openLink) {
-                    tg.openLink(data.paymentUrl);
-                } else {
-                    localStorage.setItem('pendingPaymentOrderId', data.order.id);
-                    window.location.href = data.paymentUrl;
-                    return;
-                }
-            }
-
-            onPayment?.(data.order.id);
+            clearCart();
+            setSubmitted({ orderNumber: data.order.orderNumber });
         } catch (err) {
             showAlert(err.response?.data?.error || t('errorOccurred'));
         } finally {
@@ -454,8 +464,11 @@ export default function Cart({ onNavigate, onPayment }) {
                     </div>
                 </div>
 
+                <div style={{ fontSize: 12, color: 'var(--text-secondary)', textAlign: 'center', marginBottom: 8, lineHeight: 1.5 }}>
+                    📋 Buyurtma berilgach apteka tekshiradi — to'lov havolasi botdan yuboriladi
+                </div>
                 <button className="btn-primary" onClick={handleSubmit} disabled={submitting}>
-                    {submitting ? `⏳ ${t('ordering')}` : `${t('placeOrder')} • ${grandTotal.toLocaleString()} ${t('currency')}`}
+                    {submitting ? '⏳ Yuborilmoqda...' : `📋 Buyurtma berish • ${grandTotal.toLocaleString()} ${t('currency')}`}
                 </button>
             </div>
         </div>

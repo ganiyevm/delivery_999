@@ -17,24 +17,28 @@ const ROLE_BADGE = {
     analyst:     { label: 'Analyst',     color: '#7F8C8D' },
 };
 
-const empty = { username: '', password: '', role: 'operator', fullName: '' };
+const empty = { username: '', password: '', role: 'operator', fullName: '', branchId: '' };
 
 export default function AdminAccountsPage() {
     const { t } = useT();
     const [accounts, setAccounts] = useState([]);
+    const [branches, setBranches] = useState([]);
     const [form, setForm] = useState(empty);
-    const [editing, setEditing] = useState(null); // account _id
+    const [editing, setEditing] = useState(null);
     const [showForm, setShowForm] = useState(false);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
 
     const load = () => api.get('/admin/accounts').then(r => setAccounts(r.data || [])).catch(() => {});
 
-    useEffect(() => { load(); }, []);
+    useEffect(() => {
+        load();
+        api.get('/admin/branches').then(r => setBranches(r.data || [])).catch(() => {});
+    }, []);
 
     const openNew = () => { setForm(empty); setEditing(null); setError(''); setShowForm(true); };
     const openEdit = (acc) => {
-        setForm({ username: acc.username, password: '', role: acc.role, fullName: acc.fullName || '' });
+        setForm({ username: acc.username, password: '', role: acc.role, fullName: acc.fullName || '', branchId: acc.branchId || '' });
         setEditing(acc._id);
         setError('');
         setShowForm(true);
@@ -46,9 +50,13 @@ export default function AdminAccountsPage() {
             setError('Login va parol majburiy');
             return;
         }
+        if (form.role === 'operator' && !form.branchId) {
+            setError('Operator uchun filial tanlash majburiy');
+            return;
+        }
         setLoading(true);
         try {
-            const body = { role: form.role, fullName: form.fullName };
+            const body = { role: form.role, fullName: form.fullName, branchId: form.branchId || null };
             if (!editing) { body.username = form.username; body.password = form.password; }
             if (form.password) body.password = form.password;
 
@@ -87,7 +95,7 @@ export default function AdminAccountsPage() {
             <div className="data-table-wrapper">
                 <table className="data-table">
                     <thead>
-                        <tr><th>Login</th><th>{t('fullName')}</th><th>{t('role')}</th><th>{t('status')}</th><th>{t('lastLogin')}</th><th>{t('actions')}</th></tr>
+                        <tr><th>Login</th><th>{t('fullName')}</th><th>{t('role')}</th><th>Filial</th><th>{t('status')}</th><th>{t('lastLogin')}</th><th>{t('actions')}</th></tr>
                     </thead>
                     <tbody>
                         {accounts.map(acc => {
@@ -100,6 +108,11 @@ export default function AdminAccountsPage() {
                                         <span style={{ background: rb.color + '22', color: rb.color, padding: '2px 10px', borderRadius: 20, fontSize: 12, fontWeight: 600 }}>
                                             {t(acc.role)}
                                         </span>
+                                    </td>
+                                    <td style={{ fontSize: 12 }}>
+                                        {acc.branchId
+                                            ? (() => { const b = branches.find(x => x._id === acc.branchId); return b ? `№${String(b.number).padStart(3,'0')} ${b.name}` : '—'; })()
+                                            : '—'}
                                     </td>
                                     <td>
                                         <span style={{ color: acc.isActive ? '#27AE60' : '#e74c3c', fontWeight: 600, fontSize: 12 }}>
@@ -158,10 +171,24 @@ export default function AdminAccountsPage() {
                             <div className="form-group">
                                 <label className="form-label">{t('role')} *</label>
                                 <select className="form-input" value={form.role}
-                                    onChange={e => setForm({ ...form, role: e.target.value })}>
+                                    onChange={e => setForm({ ...form, role: e.target.value, branchId: '' })}>
                                     {ROLES.map(r => <option key={r.value} value={r.value}>{r.label}</option>)}
                                 </select>
                             </div>
+                            {form.role === 'operator' && (
+                                <div className="form-group">
+                                    <label className="form-label">Filial * <span style={{ fontSize: 11, color: 'var(--text-secondary)' }}>(operator faqat shu filialni ko'radi)</span></label>
+                                    <select className="form-input" value={form.branchId}
+                                        onChange={e => setForm({ ...form, branchId: e.target.value })}>
+                                        <option value="">— Filial tanlang —</option>
+                                        {branches.map(b => (
+                                            <option key={b._id} value={b._id}>
+                                                №{String(b.number).padStart(3,'0')} {b.name}
+                                            </option>
+                                        ))}
+                                    </select>
+                                </div>
+                            )}
                             <button className="btn btn-primary" onClick={handleSave} disabled={loading}>
                                 {loading ? '⏳' : (editing ? t('save') : t('add'))}
                             </button>

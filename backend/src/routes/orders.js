@@ -4,6 +4,7 @@ const Order = require('../models/Order');
 const Stock = require('../models/Stock');
 const Branch = require('../models/Branch');
 const { BUSINESS, STATUS_TRANSITIONS } = require('../config/constants');
+const telegramService = require('../services/telegram.service');
 
 // ─── Yangi buyurtma yaratish ───
 router.post('/', auth, async (req, res, next) => {
@@ -93,9 +94,8 @@ router.post('/', auth, async (req, res, next) => {
         // Bonus ball hisoblash (delivered da yoziladi)
         const bonusEarned = Math.floor(total / 10000) * BUSINESS.BONUS_RATE;
 
-        // Naqd (pickup) — to'lovni kutmasdan operator navbatiga o'tadi
-        const isCash = paymentMethod === 'cash';
-        const initialStatus = isCash ? 'pending_operator' : 'awaiting_payment';
+        // Barcha buyurtmalar avval operator tasdiqlashini kutadi, keyin klient to'laydi
+        const initialStatus = 'pending_operator';
 
         // Order yaratish
         const order = new Order({
@@ -121,25 +121,22 @@ router.post('/', auth, async (req, res, next) => {
             paymentMethod,
             status: initialStatus,
             statusHistory: [{
-                status: initialStatus,
+                status: 'pending_operator',
                 changedBy: 'system',
-                note: isCash ? 'Aptekada to\'lov — naqd' : 'Buyurtma yaratildi',
+                note: paymentMethod === 'cash' ? 'Aptekada to\'lov — naqd' : 'Buyurtma yaratildi',
             }],
             notes,
         });
 
         await order.save();
 
-        // To'lov URL yaratish (naqd uchun kerak emas)
-        let paymentUrl = '';
-        if (paymentMethod === 'click') {
-            paymentUrl = `https://my.click.uz/services/pay?service_id=${process.env.CLICK_SERVICE_ID}&merchant_id=${process.env.CLICK_MERCHANT_ID}&amount=${total}&transaction_param=${order.orderNumber}&merchant_user_id=${process.env.CLICK_MERCHANT_USER_ID}&return_url=${encodeURIComponent(process.env.WEBAPP_URL || process.env.FRONTEND_URL || 'https://t.me/' + process.env.BOT_USERNAME)}`;
-        } else if (paymentMethod === 'payme') {
-            const paymeData = Buffer.from(
-                `m=${process.env.PAYME_MERCHANT_ID};ac.order_id=${order.orderNumber};a=${total * 100};l=uz`
-            ).toString('base64');
-            paymentUrl = `https://checkout.paycom.uz/${paymeData}`;
-        }
+        // Operatorga bot orqali xabar yuborish
+        telegramService.notifyOperator(order, branch).catch(e =>
+            console.error('[order] notifyOperator xato:', e.message)
+        );
+
+        // To'lov URL operator tasdiqlagandan keyin klientga bot orqali yuboriladi
+        const paymentUrl = '';
 
         res.status(201).json({
             order: {
