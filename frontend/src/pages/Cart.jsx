@@ -72,7 +72,7 @@ function DeliveryTimePicker({ deliveryDate, setDeliveryDate, deliverySlot, setDe
 }
 
 export default function Cart({ onNavigate, onPayment }) {
-    const { items, removeFromCart, updateQty, total } = useCart();
+    const { items, removeFromCart, updateQty, clearCart, total } = useCart();
     const { user } = useAuth();
     const { t } = useT();
     const [deliveryType, setDeliveryType] = useState('delivery');
