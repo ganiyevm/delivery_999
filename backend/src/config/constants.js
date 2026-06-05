@@ -26,8 +26,8 @@ const ORDER_STATUSES = [
 
 // Ruxsat etilgan o'tishlar
 const STATUS_TRANSITIONS = {
-    awaiting_payment: ['pending_operator', 'cancelled'],
-    pending_operator: ['confirmed', 'rejected'],
+    awaiting_payment: ['confirmed', 'cancelled'],  // to'lov → confirmed
+    pending_operator: ['awaiting_payment', 'rejected'],  // operator faqat bronlaydi yoki rad etadi
     confirmed: ['on_the_way'],
     rejected: ['cancelled'],
     on_the_way: ['delivered', 'cancelled'],
