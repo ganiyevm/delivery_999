@@ -1,31 +1,102 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { ordersAPI } from '../../api/index';
 import { useT } from '../../i18n';
 
-function PayButton({ order, t }) {
-    const [loading, setLoading] = useState(false);
+// To'lov tugmasi — Kaspi/Wildberries uslubida:
+// 1) To'lov sahifasi tashqi brauzerda ochiladi
+// 2) Ilova "Kutilmoqda..." ko'rsatadi va fon rejimida status tekshiradi
+// 3) To'lov kelganda avtomatik "✅" chiqadi (onSuccess chaqiriladi)
+function PayButton({ order, t, onSuccess }) {
+    const [phase, setPhase] = useState('idle'); // idle | opening | waiting | error
+    const pollRef = useRef(null);
+    const tg = window.Telegram?.WebApp;
+
+    const stopPolling = useCallback(() => {
+        if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null; }
+    }, []);
+
+    // To'lov kelgan-kelmaganini tekshirish
+    const checkStatus = useCallback(async () => {
+        try {
+            const { data } = await ordersAPI.getById(order._id);
+            if (data.status === 'confirmed' || data.paymentStatus === 'paid') {
+                stopPolling();
+                onSuccess?.();
+            }
+        } catch (_) {}
+    }, [order._id, stopPolling, onSuccess]);
+
+    // Mini-app qayta faollashganda (foydalanuvchi to'lashdan qaytdi) — darhol tekshirish
+    useEffect(() => {
+        if (phase !== 'waiting') return;
+
+        // Polling har 5 soniyada
+        pollRef.current = setInterval(checkStatus, 5000);
+
+        // Telegram mini-app: foydalanuvchi qaytganda voqea
+        const onActivated = () => checkStatus();
+        tg?.onEvent?.('activated', onActivated);
+
+        // Brauzer: tab/oyna qayta fokusga kelganda
+        const onVisible = () => { if (document.visibilityState === 'visible') checkStatus(); };
+        document.addEventListener('visibilitychange', onVisible);
+
+        return () => {
+            stopPolling();
+            tg?.offEvent?.('activated', onActivated);
+            document.removeEventListener('visibilitychange', onVisible);
+        };
+    }, [phase, checkStatus, stopPolling, tg]);
+
+    useEffect(() => () => stopPolling(), [stopPolling]);
 
     const handlePay = async () => {
-        setLoading(true);
+        setPhase('opening');
         try {
             const { data } = await ordersAPI.getPaymentUrl(order._id);
-            if (!data.paymentUrl) return;
-            const tg = window.Telegram?.WebApp;
-            if (tg?.openLink) tg.openLink(data.paymentUrl);
+            if (!data.paymentUrl) { setPhase('error'); return; }
+
+            // Tashqi brauzerda ochish
+            if (tg?.openLink) tg.openLink(data.paymentUrl, { try_instant_view: false });
             else window.open(data.paymentUrl, '_blank');
-        } catch (_) {}
-        finally { setLoading(false); }
+
+            // To'lov kutish rejimi
+            setPhase('waiting');
+        } catch (_) {
+            setPhase('error');
+        }
     };
 
+    if (phase === 'waiting') {
+        return (
+            <div style={{ marginTop: 12, padding: '16px', borderRadius: 14, background: 'rgba(52,152,219,0.08)', border: '1px solid rgba(52,152,219,0.2)', textAlign: 'center' }}>
+                <div style={{ fontSize: 28, marginBottom: 8 }}>
+                    <span style={{ display: 'inline-block', animation: 'spin 1.2s linear infinite' }}>⏳</span>
+                </div>
+                <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 4 }}>To'lov kutilmoqda...</div>
+                <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginBottom: 12 }}>
+                    To'lashni tugatib, ilovaga qayting — avtomatik tasdiqlanadi
+                </div>
+                <button onClick={handlePay} style={{ fontSize: 12, padding: '6px 16px', borderRadius: 20, border: '1px solid var(--border)', background: 'var(--card)', cursor: 'pointer', color: 'var(--text)' }}>
+                    🔄 To'lov havolasini qayta ochish
+                </button>
+            </div>
+        );
+    }
+
     return (
-        <button onClick={handlePay} disabled={loading} style={{
+        <button onClick={handlePay} disabled={phase === 'opening'} style={{
             width: '100%', marginTop: 12, padding: '14px', borderRadius: 14,
-            background: 'var(--green)', color: 'white', border: 'none',
-            fontWeight: 700, fontSize: 15, cursor: 'pointer',
-            boxShadow: '0 4px 15px rgba(39,174,96,0.35)',
-            opacity: loading ? 0.7 : 1,
+            background: phase === 'error' ? 'var(--red, #e74c3c)' : 'var(--green)',
+            color: 'white', border: 'none', fontWeight: 700, fontSize: 15,
+            cursor: phase === 'opening' ? 'default' : 'pointer',
+            boxShadow: '0 4px 15px rgba(39,174,96,0.3)',
+            opacity: phase === 'opening' ? 0.75 : 1,
+            transition: 'opacity .2s',
         }}>
-            {loading ? '⏳...' : `💳 To'lash — ${order.total?.toLocaleString()} ${t('currency')}`}
+            {phase === 'opening' ? '⏳ Ochilmoqda...'
+            : phase === 'error'   ? '⚠️ Qayta urinish'
+            : `💳 To'lash — ${order.total?.toLocaleString()} ${t('currency')}`}
         </button>
     );
 }
@@ -70,7 +141,7 @@ function InfoRow({ label, value }) {
     );
 }
 
-function OrderDetail({ order, onClose, t }) {
+function OrderDetail({ order, onClose, onRefresh, t }) {
     const dateStr = new Date(order.createdAt).toLocaleString([], {
         day: '2-digit', month: '2-digit', year: 'numeric',
         hour: '2-digit', minute: '2-digit',
@@ -104,7 +175,7 @@ function OrderDetail({ order, onClose, t }) {
                 <StatusBadge status={order.status} t={t} />
 
                 {order.status === 'awaiting_payment' && order.paymentMethod !== 'cash' && (
-                    <PayButton order={order} t={t} />
+                    <PayButton order={order} t={t} onSuccess={() => { onRefresh?.(); onClose(); }} />
                 )}
 
                 <hr style={{ margin: '14px 0', border: 'none', borderTop: '1px solid var(--border)' }} />
@@ -180,12 +251,14 @@ export default function Orders({ onBack }) {
     const [loading, setLoading] = useState(true);
     const [selected, setSelected] = useState(null);
 
-    useEffect(() => {
+    const loadOrders = useCallback(() => {
         ordersAPI.getMy()
             .then(res => setOrders(res.data || []))
             .catch(err => console.error('Orders error:', err?.response?.data || err.message))
             .finally(() => setLoading(false));
     }, []);
+
+    useEffect(() => { loadOrders(); }, [loadOrders]);
 
     if (loading) return <div className="loading"><div className="loading-spinner" /></div>;
 
@@ -216,7 +289,7 @@ export default function Orders({ onBack }) {
                 ))
             )}
 
-            {selected && <OrderDetail order={selected} onClose={() => setSelected(null)} t={t} />}
+            {selected && <OrderDetail order={selected} onClose={() => setSelected(null)} onRefresh={loadOrders} t={t} />}
         </div>
     );
 }
