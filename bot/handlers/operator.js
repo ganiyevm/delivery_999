@@ -46,21 +46,20 @@ module.exports = (bot) => {
             }
             await order.save();
 
-            // To'lov havolasi yaratish
-            let paymentUrl = '';
-            const botUrl = process.env.WEBAPP_URL || `https://t.me/${process.env.BOT_USERNAME}`;
-            if (order.paymentMethod === 'click') {
-                paymentUrl = `https://my.click.uz/services/pay?service_id=${process.env.CLICK_SERVICE_ID}&merchant_id=${process.env.CLICK_MERCHANT_ID}&amount=${order.total}&transaction_param=${order.orderNumber}&merchant_user_id=${process.env.CLICK_MERCHANT_USER_ID}&return_url=${encodeURIComponent(botUrl)}`;
-            } else if (order.paymentMethod === 'payme') {
-                const paymeData = Buffer.from(`m=${process.env.PAYME_MERCHANT_ID};ac.order_id=${order.orderNumber};a=${order.total * 100};l=uz`).toString('base64');
-                paymentUrl = `https://checkout.paycom.uz/${paymeData}`;
-            }
-
-            // Klientga to'lov xabari yuborish
-            if (order.telegramId && paymentUrl) {
-                const payKeyboard = { inline_keyboard: [[{ text: `💳 To'lash — ${order.total.toLocaleString()} so'm`, url: paymentUrl }]] };
+            // Klientga mini-app orqali to'lov (havola emas — xavfsiz)
+            if (order.telegramId) {
+                const webAppUrl = process.env.WEBAPP_URL || `https://t.me/${process.env.BOT_USERNAME}`;
+                const payKeyboard = {
+                    inline_keyboard: [[{
+                        text: `💳 To'lash — ${order.total.toLocaleString()} so'm`,
+                        web_app: { url: webAppUrl },
+                    }]],
+                };
                 await telegramService.sendMessage(order.telegramId,
-                    `✅ Buyurtmangiz <b>#${order.orderNumber}</b> bronlandi!\n\nDorilar tayyor — to'lovni amalga oshiring:\n💵 Jami: <b>${order.total.toLocaleString()} so'm</b>`,
+                    `✅ Buyurtmangiz <b>#${order.orderNumber}</b> bronlandi!\n\n` +
+                    `💊 Dorilar tayyor, endi to'lov qiling:\n` +
+                    `💵 Jami: <b>${order.total.toLocaleString()} so'm</b>\n\n` +
+                    `👇 Quyidagi tugmani bosing:`,
                     { reply_markup: payKeyboard }
                 );
             }

@@ -152,6 +152,27 @@ router.post('/', auth, async (req, res, next) => {
     }
 });
 
+// ─── To'lov URL (faqat awaiting_payment, faqat buyurtma egasi) ───
+router.get('/:id/payment-url', auth, async (req, res, next) => {
+    try {
+        const order = await Order.findOne({ _id: req.params.id, user: req.user._id });
+        if (!order) return res.status(404).json({ error: 'Topilmadi' });
+        if (order.status !== 'awaiting_payment') return res.status(400).json({ error: 'To\'lov kerak emas' });
+        if (order.paymentMethod === 'cash') return res.status(400).json({ error: 'Naqd to\'lov' });
+
+        const returnUrl = process.env.WEBAPP_URL || `https://t.me/${process.env.BOT_USERNAME}`;
+        let paymentUrl = '';
+        if (order.paymentMethod === 'click') {
+            paymentUrl = `https://my.click.uz/services/pay?service_id=${process.env.CLICK_SERVICE_ID}&merchant_id=${process.env.CLICK_MERCHANT_ID}&amount=${order.total}&transaction_param=${order.orderNumber}&merchant_user_id=${process.env.CLICK_MERCHANT_USER_ID}&return_url=${encodeURIComponent(returnUrl)}`;
+        } else if (order.paymentMethod === 'payme') {
+            const d = Buffer.from(`m=${process.env.PAYME_MERCHANT_ID};ac.order_id=${order.orderNumber};a=${order.total * 100};l=uz`).toString('base64');
+            paymentUrl = `https://checkout.paycom.uz/${d}`;
+        }
+
+        res.json({ paymentUrl });
+    } catch (error) { next(error); }
+});
+
 // ─── Mening buyurtmalarim ───
 router.get('/my', auth, async (req, res, next) => {
     try {

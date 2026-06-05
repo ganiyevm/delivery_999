@@ -2,6 +2,34 @@ import { useState, useEffect } from 'react';
 import { ordersAPI } from '../../api/index';
 import { useT } from '../../i18n';
 
+function PayButton({ order, t }) {
+    const [loading, setLoading] = useState(false);
+
+    const handlePay = async () => {
+        setLoading(true);
+        try {
+            const { data } = await ordersAPI.getPaymentUrl(order._id);
+            if (!data.paymentUrl) return;
+            const tg = window.Telegram?.WebApp;
+            if (tg?.openLink) tg.openLink(data.paymentUrl);
+            else window.open(data.paymentUrl, '_blank');
+        } catch (_) {}
+        finally { setLoading(false); }
+    };
+
+    return (
+        <button onClick={handlePay} disabled={loading} style={{
+            width: '100%', marginTop: 12, padding: '14px', borderRadius: 14,
+            background: 'var(--green)', color: 'white', border: 'none',
+            fontWeight: 700, fontSize: 15, cursor: 'pointer',
+            boxShadow: '0 4px 15px rgba(39,174,96,0.35)',
+            opacity: loading ? 0.7 : 1,
+        }}>
+            {loading ? '⏳...' : `💳 To'lash — ${order.total?.toLocaleString()} ${t('currency')}`}
+        </button>
+    );
+}
+
 const STATUS_KEYS = ['awaiting_payment', 'pending_operator', 'confirmed', 'on_the_way', 'delivered', 'rejected', 'cancelled'];
 const STATUS_ICONS = {
     awaiting_payment: '⏳', pending_operator: '🔄', confirmed: '✅',
@@ -75,6 +103,10 @@ function OrderDetail({ order, onClose, t }) {
 
                 <StatusBadge status={order.status} t={t} />
 
+                {order.status === 'awaiting_payment' && order.paymentMethod !== 'cash' && (
+                    <PayButton order={order} t={t} />
+                )}
+
                 <hr style={{ margin: '14px 0', border: 'none', borderTop: '1px solid var(--border)' }} />
 
                 {/* Items */}
@@ -84,11 +116,11 @@ function OrderDetail({ order, onClose, t }) {
                         <div style={{ flex: 1 }}>
                             <div style={{ fontWeight: 600 }}>{item.productName || item.product?.name || t('orderProduct')}</div>
                             <div style={{ fontSize: 11, color: 'var(--text-secondary)' }}>
-                                {(item.price || 0).toLocaleString()} сўм × {item.qty}
+                                {(item.price || 0).toLocaleString()} {t('currency')} × {item.qty}
                             </div>
                         </div>
                         <div style={{ fontWeight: 800, color: 'var(--green)', whiteSpace: 'nowrap' }}>
-                            {((item.price || 0) * item.qty).toLocaleString()} сўм
+                            {((item.price || 0) * item.qty).toLocaleString()} {t('currency')}
                         </div>
                     </div>
                 ))}
@@ -106,12 +138,12 @@ function OrderDetail({ order, onClose, t }) {
                 {order.deliveryCost > 0 && (
                     <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, marginBottom: 6, color: 'var(--text-secondary)' }}>
                         <span>{t('deliveryCost')}</span>
-                        <span>{(order.deliveryCost || 0).toLocaleString()} сўм</span>
+                        <span>{(order.deliveryCost || 0).toLocaleString()} {t('currency')}</span>
                     </div>
                 )}
                 <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 800, fontSize: 16 }}>
                     <span>{t('orderTotal')}</span>
-                    <span style={{ color: 'var(--green)' }}>{(order.total || 0).toLocaleString()} сўм</span>
+                    <span style={{ color: 'var(--green)' }}>{(order.total || 0).toLocaleString()} {t('currency')}</span>
                 </div>
 
                 {order.statusHistory?.length > 0 && (
@@ -177,7 +209,7 @@ export default function Orders({ onBack }) {
                             {o.items?.length || 0} {t('orderItems').toLowerCase()} • {o.branch?.name || ''}
                         </div>
                         <div className="flex-between">
-                            <span style={{ fontWeight: 800, color: 'var(--green)' }}>{o.total?.toLocaleString()} сўм</span>
+                            <span style={{ fontWeight: 800, color: 'var(--green)' }}>{o.total?.toLocaleString()} {t('currency')}</span>
                             <span className="text-sm text-gray">{new Date(o.createdAt).toLocaleDateString()}</span>
                         </div>
                     </div>

@@ -23,6 +23,7 @@ export const ordersAPI = {
     getMy: () => api.get('/orders/my'),
     getById: (id) => api.get(`/orders/${id}`),
     cancel: (id) => api.post(`/orders/${id}/cancel`),
+    getPaymentUrl: (id) => api.get(`/orders/${id}/payment-url`),
 };
 
 export const paymentAPI = {
