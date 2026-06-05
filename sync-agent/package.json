@@ -1,0 +1,25 @@
+{
+  "name": "apteka999-sync-agent",
+  "version": "1.0.0",
+  "description": "Markaziy ofizda ishlovchi sync agent — 16 filial SQL Server'idan o'qib Railway backend'ga yuboradi",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node src/index.js",
+    "dev": "nodemon src/index.js",
+    "once": "node src/index.js --once",
+    "test-connection": "node src/test-connection.js",
+    "service:install": "node install-service.js install",
+    "service:uninstall": "node install-service.js uninstall"
+  },
+  "dependencies": {
+    "axios": "^1.7.8",
+    "dotenv": "^16.4.5",
+    "mssql": "^11.0.1"
+  },
+  "optionalDependencies": {
+    "node-windows": "^1.0.0-beta.8"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.7"
+  }
+}

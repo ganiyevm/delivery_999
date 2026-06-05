@@ -1,9 +1,75 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { ordersAPI, branchesAPI } from '../api/index';
+import api from '../api/axios';
 import DrugImage from '../components/DrugImages';
 import { useCart } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
 import { useT } from '../i18n';
+import { showAlert } from '../utils/telegram';
+
+const DAY_NAMES = ['Bugun', 'Ertaga', 'Indinga'];
+
+function DeliveryTimePicker({ deliveryDate, setDeliveryDate, deliverySlot, setDeliverySlot }) {
+    const days = useMemo(() => Array.from({ length: 3 }, (_, i) => {
+        const d = new Date();
+        d.setDate(d.getDate() + i);
+        return { iso: d.toISOString().slice(0, 10), short: DAY_NAMES[i] };
+    }), []);
+
+    // Bugun tanlanganda minimum vaqt — hozirdan 1 soat keyin
+    const minTime = useMemo(() => {
+        if (!deliveryDate || deliveryDate !== days[0].iso) return '08:00';
+        const d = new Date();
+        d.setMinutes(d.getMinutes() + 60);
+        return `${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
+    }, [deliveryDate, days]);
+
+    return (
+        <div className="form-group">
+            <label className="form-label">Yetkazish vaqti</label>
+            <div style={{ display: 'flex', gap: 6, marginBottom: 10 }}>
+                {days.map(d => (
+                    <button key={d.iso} type="button"
+                        onClick={() => { setDeliveryDate(d.iso); setDeliverySlot(''); }}
+                        style={{
+                            flex: 1, padding: '8px 4px', borderRadius: 12, border: '1.5px solid',
+                            borderColor: deliveryDate === d.iso ? 'var(--green)' : 'var(--border)',
+                            background: deliveryDate === d.iso ? 'rgba(39,174,96,0.1)' : 'var(--card)',
+                            color: deliveryDate === d.iso ? 'var(--green)' : 'var(--text)',
+                            fontWeight: deliveryDate === d.iso ? 700 : 400,
+                            fontSize: 13, cursor: 'pointer',
+                        }}>
+                        {d.short}
+                    </button>
+                ))}
+            </div>
+            {deliveryDate && (
+                <>
+                    <input
+                        type="time"
+                        className="form-input"
+                        value={deliverySlot}
+                        min={minTime}
+                        max="23:00"
+                        onChange={e => {
+                            const val = e.target.value;
+                            if (!val) { setDeliverySlot(''); return; }
+                            const [h, m] = val.split(':').map(Number);
+                            const [mh, mm] = minTime.split(':').map(Number);
+                            if (h * 60 + m < mh * 60 + mm) {
+                                setDeliverySlot(minTime);
+                                e.target.value = minTime;
+                            } else {
+                                setDeliverySlot(val);
+                            }
+                        }}
+                        style={{ fontSize: 16 }}
+                    />
+                </>
+            )}
+        </div>
+    );
+}
 
 export default function Cart({ onNavigate, onPayment }) {
     const { items, removeFromCart, updateQty, total } = useCart();
@@ -15,6 +81,12 @@ export default function Cart({ onNavigate, onPayment }) {
     const [phone, setPhone] = useState(user?.phone || '');
     const [name, setName] = useState(`${user?.firstName || ''} ${user?.lastName || ''}`.trim());
     const [address, setAddress] = useState('');
+    const [yandexDropType, setYandexDropType] = useState('door'); // 'door' | 'entrance'
+    const [apartment, setApartment] = useState('');
+    const [entrance, setEntrance] = useState('');
+    const [floor, setFloor] = useState('');
+    const [deliveryDate, setDeliveryDate] = useState('');
+    const [deliverySlot, setDeliverySlot] = useState('');
     const [comment, setComment] = useState('');
     const [geoLoading, setGeoLoading] = useState(false);
     const [branches, setBranches] = useState([]);
@@ -26,21 +98,18 @@ export default function Cart({ onNavigate, onPayment }) {
     const [deliveryCalc, setDeliveryCalc] = useState(null);
 
     const getLocation = () => {
-        if (!navigator.geolocation) return alert(t('geoNotSupported'));
+        if (!navigator.geolocation) return showAlert(t('geoNotSupported'));
         setGeoLoading(true);
         navigator.geolocation.getCurrentPosition(
             async (pos) => {
                 const { latitude, longitude } = pos.coords;
                 const coords = `${latitude.toFixed(6)}, ${longitude.toFixed(6)}`;
+                // Yetkazib berish masofasini hisoblash uchun koordinatani saqlaymiz
+                setUserLoc({ lat: latitude, lng: longitude });
                 try {
-                    const res = await fetch(
-                        `https://geocode-maps.yandex.ru/1.x/?apikey=b282d82a-e502-4d33-acb3-d5bd433af913&geocode=${longitude},${latitude}&format=json&results=1&lang=uz_UZ`
-                    );
-                    const data = await res.json();
-                    const geoObj = data?.response?.GeoObjectCollection?.featureMember?.[0]?.GeoObject;
-                    const formatted = geoObj?.metaDataProperty?.GeocoderMetaData?.Address?.formatted || '';
-                    const parts = formatted.split(',').map(s => s.trim()).filter(Boolean);
-                    const humanAddr = parts.length > 1 ? parts.slice(1).join(', ') : formatted;
+                    // Geokodlash backend orqali (Yandex kaliti serverda yashiringan)
+                    const res = await api.get('/geo/reverse', { params: { lat: latitude, lng: longitude } });
+                    const humanAddr = res.data?.address || '';
                     setAddress(humanAddr ? `${humanAddr} (${coords})` : coords);
                 } catch {
                     setAddress(coords);
@@ -49,7 +118,7 @@ export default function Cart({ onNavigate, onPayment }) {
             },
             () => {
                 setGeoLoading(false);
-                alert(t('geoError'));
+                showAlert(t('geoError'));
             },
             { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
         );
@@ -59,14 +128,8 @@ export default function Cart({ onNavigate, onPayment }) {
         branchesAPI.getAll().then(res => {
             setBranches((res.data || []).filter(b => b.isOpen));
         }).catch(() => {});
-
-        if (navigator.geolocation) {
-            navigator.geolocation.getCurrentPosition(
-                pos => setUserLoc({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
-                () => {},
-                { enableHighAccuracy: true, timeout: 8000 }
-            );
-        }
+        // Eslatma: joylashuv ruxsati ataylab so'ralmaydi — faqat foydalanuvchi
+        // "Joylashuvni aniqlash" tugmasini bossa olinadi (getLocation).
     }, []);
 
     useEffect(() => {
@@ -81,16 +144,8 @@ export default function Cart({ onNavigate, onPayment }) {
             .catch(() => { setAvailableBranchIds(null); setProductStatus([]); });
     }, [items]);
 
-    useEffect(() => {
-        if (deliveryType !== 'delivery' || !selectedBranch) return;
-        const params = { branchId: selectedBranch, orderTotal: total };
-        if (userLoc) { params.userLat = userLoc.lat; params.userLng = userLoc.lng; }
-        import('../api/axios').then(({ default: ax }) => {
-            ax.post('/delivery/calculate', params)
-                .then(r => setDeliveryCalc(r.data))
-                .catch(() => setDeliveryCalc(null));
-        });
-    }, [selectedBranch, userLoc, deliveryType, total]);
+    // Masofadan delivery hisoblash o'chirilgan — keyinchalik yoqiladi
+    // useEffect(() => { ... }, [selectedBranch, userLoc, deliveryType, total]);
 
     const filteredBranches = availableBranchIds === null
         ? branches
@@ -112,26 +167,31 @@ export default function Cart({ onNavigate, onPayment }) {
         );
     }
 
-    const deliveryCost = deliveryType !== 'delivery' ? 0
-        : deliveryCalc?.free ? 0
-        : deliveryCalc?.outOfRange ? null
-        : deliveryCalc?.cost != null ? deliveryCalc.cost
-        : (deliveryCalc === null ? 15000 : null);
+    // yandex: narx Yandex tomonidan alohida — bizda 0
+    // pickup: yetkazish yo'q
+    const deliveryCost = 0;
 
     const maxBonusDiscount = Math.floor(total * 0.3);
     const bonusDiscount = useBonusPoints ? Math.min((user?.bonusPoints || 0), maxBonusDiscount) : 0;
     const grandTotal = total + (deliveryCost || 0) - bonusDiscount;
 
     const handleSubmit = async () => {
-        if (!phone || !name) return alert(t('namePhoneRequired'));
-        if (deliveryType === 'delivery' && !address) return alert(t('addressRequired'));
-        if (!selectedBranch) return alert(t('branchRequired'));
+        if (!phone || !name) return showAlert(t('namePhoneRequired'));
+        if (deliveryType === 'yandex' && !address) return showAlert('Manzilni kiriting');
+        if (deliveryType === 'yandex' && !deliveryDate) return showAlert('Yetkazish sanasini tanlang');
+        if (deliveryType === 'yandex' && !deliverySlot) return showAlert('Yetkazish vaqtini kiriting');
+        if (deliveryType === 'yandex' && deliverySlot) {
+            const [h] = deliverySlot.split(':').map(Number);
+            if (h < 8 || h > 22) return showAlert('Vaqt 08:00 – 23:00 orasida bo\'lishi kerak');
+        }
+        if (!selectedBranch) return showAlert(t('branchRequired'));
 
         setSubmitting(true);
         try {
             const { data } = await ordersAPI.create({
                 items: items.map(i => ({ productId: i.productId, qty: i.qty })),
-                deliveryType, address, phone,
+                deliveryType, address, apartment, entrance, floor, yandexDropType,
+                deliveryDate, deliverySlot, phone,
                 customerName: name,
                 branchId: selectedBranch,
                 paymentMethod,
@@ -152,7 +212,7 @@ export default function Cart({ onNavigate, onPayment }) {
 
             onPayment?.(data.order.id);
         } catch (err) {
-            alert(err.response?.data?.error || t('errorOccurred'));
+            showAlert(err.response?.data?.error || t('errorOccurred'));
         } finally {
             setSubmitting(false);
         }
@@ -170,7 +230,7 @@ export default function Cart({ onNavigate, onPayment }) {
                         </div>
                         <div className="cart-item-info">
                             <div className="cart-item-name">{item.name}</div>
-                            <div className="cart-item-price">{item.price.toLocaleString()} сўм</div>
+                            <div className="cart-item-price">{item.price.toLocaleString()} {t('currency')}</div>
                             <div className="qty-controls">
                                 <button className="qty-btn" onClick={() => updateQty(item.productId, item.qty - 1)}>−</button>
                                 <span className="qty-value">{item.qty}</span>
@@ -185,8 +245,8 @@ export default function Cart({ onNavigate, onPayment }) {
             <div className="section">
                 <h3 className="section-title" style={{ padding: 0 }}>{t('delivery')}</h3>
                 <div className="toggle-group">
-                    <button className={`toggle-btn ${deliveryType === 'delivery' ? 'active' : ''}`}
-                        onClick={() => setDeliveryType('delivery')}>🚚 {t('delivery')}</button>
+                    <button className={`toggle-btn ${deliveryType === 'yandex' ? 'active' : ''}`}
+                        onClick={() => { setDeliveryType('yandex'); setPaymentMethod(m => m === 'cash' ? 'click' : m); }}>🟡 Yandex</button>
                     <button className={`toggle-btn ${deliveryType === 'pickup' ? 'active' : ''}`}
                         onClick={() => setDeliveryType('pickup')}>🏪 {t('pickup')}</button>
                 </div>
@@ -258,31 +318,76 @@ export default function Cart({ onNavigate, onPayment }) {
                     <input className="form-input" value={phone} onChange={e => setPhone(e.target.value)} placeholder="+998 90 123-45-67" />
                 </div>
 
-                {deliveryType === 'delivery' && (
-                    <div className="form-group">
-                        <label className="form-label">{t('yourAddress')}</label>
-                        <div style={{ display: 'flex', gap: 8, alignItems: 'flex-start' }}>
-                            <textarea className="form-textarea" style={{ flex: 1 }} value={address}
-                                onChange={e => setAddress(e.target.value)}
-                                placeholder={t('addressPlaceholder')} />
-                            <button type="button" onClick={getLocation} disabled={geoLoading}
-                                style={{ flexShrink: 0, width: 44, height: 44, borderRadius: 12, background: 'var(--green)', color: 'white', border: 'none', fontSize: 20, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                                {geoLoading ? (
-                                    <svg width="20" height="20" viewBox="0 0 20 20" fill="none" style={{ animation: 'spin 1s linear infinite' }}>
-                                        <circle cx="10" cy="10" r="8" stroke="white" strokeWidth="2.5" strokeDasharray="40" strokeDashoffset="10"/>
-                                    </svg>
-                                ) : (
-                                    <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-                                        <path d="M10 2C6.69 2 4 4.69 4 8c0 4.5 6 10 6 10s6-5.5 6-10c0-3.31-2.69-6-6-6z" stroke="white" strokeWidth="2" fill="none"/>
-                                        <circle cx="10" cy="8" r="1.5" fill="white"/>
-                                    </svg>
-                                )}
-                            </button>
+                {deliveryType === 'yandex' && (
+                    <>
+                        <div className="form-group">
+                            <label className="form-label">Yetkazish turi</label>
+                            <div className="toggle-group">
+                                <button className={`toggle-btn ${yandexDropType === 'door' ? 'active' : ''}`}
+                                    onClick={() => setYandexDropType('door')}>🚪 Eshikka qadar</button>
+                                <button className={`toggle-btn ${yandexDropType === 'entrance' ? 'active' : ''}`}
+                                    onClick={() => setYandexDropType('entrance')}>🏢 Kirish oldiga</button>
+                            </div>
                         </div>
-                        <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginTop: 4 }}>
-                            {t('geoHint')}
+                        <div className="form-group">
+                            <label className="form-label">Ko'cha, uy</label>
+                            <div style={{ display: 'flex', gap: 8, alignItems: 'flex-start' }}>
+                                <textarea className="form-textarea" style={{ flex: 1 }} value={address}
+                                    onChange={e => setAddress(e.target.value)}
+                                    placeholder="Ko'cha nomi, uy raqami" />
+                                <button type="button" onClick={getLocation} disabled={geoLoading}
+                                    style={{ flexShrink: 0, width: 44, height: 44, borderRadius: 12, background: 'var(--green)', color: 'white', border: 'none', fontSize: 20, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                    {geoLoading ? (
+                                        <svg width="20" height="20" viewBox="0 0 20 20" fill="none" style={{ animation: 'spin 1s linear infinite' }}>
+                                            <circle cx="10" cy="10" r="8" stroke="white" strokeWidth="2.5" strokeDasharray="40" strokeDashoffset="10"/>
+                                        </svg>
+                                    ) : (
+                                        <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+                                            <path d="M10 2C6.69 2 4 4.69 4 8c0 4.5 6 10 6 10s6-5.5 6-10c0-3.31-2.69-6-6-6z" stroke="white" strokeWidth="2" fill="none"/>
+                                            <circle cx="10" cy="8" r="1.5" fill="white"/>
+                                        </svg>
+                                    )}
+                                </button>
+                            </div>
+                            <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginTop: 4 }}>
+                                {t('geoHint')}
+                            </div>
                         </div>
-                    </div>
+                        {yandexDropType === 'door' ? (
+                            <div style={{ display: 'flex', gap: 8 }}>
+                                <div className="form-group" style={{ flex: 1 }}>
+                                    <label className="form-label">Xonadon</label>
+                                    <input className="form-input" value={apartment}
+                                        onChange={e => setApartment(e.target.value)} placeholder="12" />
+                                </div>
+                                <div className="form-group" style={{ flex: 1 }}>
+                                    <label className="form-label">Kirish</label>
+                                    <input className="form-input" value={entrance}
+                                        onChange={e => setEntrance(e.target.value)} placeholder="2" />
+                                </div>
+                                <div className="form-group" style={{ flex: 1 }}>
+                                    <label className="form-label">Qavat</label>
+                                    <input className="form-input" value={floor}
+                                        onChange={e => setFloor(e.target.value)} placeholder="5" />
+                                </div>
+                            </div>
+                        ) : (
+                            <div style={{ display: 'flex', gap: 8 }}>
+                                <div className="form-group" style={{ flex: 1 }}>
+                                    <label className="form-label">Kirish</label>
+                                    <input className="form-input" value={entrance}
+                                        onChange={e => setEntrance(e.target.value)} placeholder="2" />
+                                </div>
+                            </div>
+                        )}
+                        <DeliveryTimePicker
+                            deliveryDate={deliveryDate} setDeliveryDate={setDeliveryDate}
+                            deliverySlot={deliverySlot} setDeliverySlot={setDeliverySlot}
+                        />
+                        <div style={{ marginTop: 8, padding: '8px 12px', borderRadius: 10, background: 'rgba(255,204,0,0.1)', border: '1px solid rgba(255,204,0,0.3)', fontSize: 12, color: 'var(--text-secondary)' }}>
+                            🟡 Yetkazib berish narxi Yandex tomonidan alohida hisoblanadi
+                        </div>
+                    </>
                 )}
 
                 <div className="form-group">
@@ -296,11 +401,20 @@ export default function Cart({ onNavigate, onPayment }) {
             <div className="section">
                 <h3 className="section-title" style={{ padding: 0 }}>{t('paymentTitle')}</h3>
                 <div className="toggle-group">
+                    {deliveryType === 'pickup' && (
+                        <button className={`toggle-btn ${paymentMethod === 'cash' ? 'active' : ''}`}
+                            onClick={() => setPaymentMethod('cash')}>🏪 Aptekada</button>
+                    )}
                     <button className={`toggle-btn ${paymentMethod === 'click' ? 'active' : ''}`}
                         onClick={() => setPaymentMethod('click')}>💳 Click</button>
                     <button className={`toggle-btn ${paymentMethod === 'payme' ? 'active' : ''}`}
                         onClick={() => setPaymentMethod('payme')}>💳 Payme</button>
                 </div>
+                {paymentMethod === 'cash' && (
+                    <div style={{ marginTop: 8, padding: '10px 12px', borderRadius: 10, background: 'rgba(39,174,96,0.08)', border: '1px solid rgba(39,174,96,0.2)', fontSize: 12, color: 'var(--text-secondary)' }}>
+                        💵 Aptekaga kelganda naqd yoki kartada to'laysiz
+                    </div>
+                )}
 
                 {user?.bonusPoints > 0 && (
                     <div className="setting-row" style={{ margin: 0 }}>
@@ -320,51 +434,29 @@ export default function Cart({ onNavigate, onPayment }) {
                 <div className="summary-block">
                     <div className="summary-row">
                         <span>{t('cartItemsLabel')}</span>
-                        <span>{total.toLocaleString()} сўм</span>
+                        <span>{total.toLocaleString()} {t('currency')}</span>
                     </div>
-                    {deliveryType === 'delivery' && (
+                    {deliveryType === 'yandex' && (
                         <div className="summary-row">
-                            <span>
-                                {t('deliveryCost')}
-                                {deliveryCalc?.distKm != null && (
-                                    <span style={{ fontSize: 11, color: 'var(--text-secondary)', marginLeft: 4 }}>
-                                        ({deliveryCalc.distKm} km)
-                                    </span>
-                                )}
-                            </span>
-                            {deliveryCalc?.outOfRange ? (
-                                <span style={{ color: 'var(--red)', fontSize: 12, fontWeight: 700 }}>🚫 {t('outOfRangeLabel')}</span>
-                            ) : deliveryCost === 0 ? (
-                                <span className="free">{t('free')} 🎉</span>
-                            ) : deliveryCost != null ? (
-                                <span style={{ fontWeight: 700 }}>{deliveryCost.toLocaleString()} сўм</span>
-                            ) : (
-                                <span style={{ color: 'var(--text-secondary)', fontSize: 12 }}>{t('calculating')}</span>
-                            )}
+                            <span>Yetkazish (Yandex)</span>
+                            <span style={{ color: 'var(--text-secondary)', fontSize: 12 }}>alohida</span>
                         </div>
                     )}
                     {bonusDiscount > 0 && (
                         <div className="summary-row">
                             <span>{t('bonusLabel')}</span>
-                            <span className="discount">−{bonusDiscount.toLocaleString()} сўм</span>
+                            <span className="discount">−{bonusDiscount.toLocaleString()} {t('currency')}</span>
                         </div>
                     )}
                     <div className="summary-row total">
                         <span>{t('grandTotal')}</span>
-                        <span>{grandTotal.toLocaleString()} сўм</span>
+                        <span>{grandTotal.toLocaleString()} {t('currency')}</span>
                     </div>
                 </div>
 
-                {deliveryCalc?.outOfRange && deliveryType === 'delivery' ? (
-                    <div style={{ padding: '14px', borderRadius: 14, textAlign: 'center', background: 'rgba(231,76,60,0.08)', border: '1px solid rgba(231,76,60,0.2)', color: 'var(--red)', fontSize: 13, fontWeight: 600 }}>
-                        🚫 {t('outOfRangeWarn').replace('{km}', deliveryCalc.distKm)}<br />
-                        <span style={{ fontWeight: 400, fontSize: 12 }}>{t('pickupHint')}</span>
-                    </div>
-                ) : (
-                    <button className="btn-primary" onClick={handleSubmit} disabled={submitting}>
-                        {submitting ? `⏳ ${t('ordering')}` : `${t('placeOrder')} • ${grandTotal.toLocaleString()} сўм`}
-                    </button>
-                )}
+                <button className="btn-primary" onClick={handleSubmit} disabled={submitting}>
+                    {submitting ? `⏳ ${t('ordering')}` : `${t('placeOrder')} • ${grandTotal.toLocaleString()} ${t('currency')}`}
+                </button>
             </div>
         </div>
     );

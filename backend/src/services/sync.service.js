@@ -81,9 +81,13 @@ async function applyChunk({ branchNumber, syncStartedAt, chunkIndex, totalChunks
             });
         }
 
-        // Stock bulk upsert (price + qty + expiryDate)
-        const stockOps = [];
+        // Stock upsert (price + qty + expiryDate).
+        // MUHIM: bitta product+branch uchun faqat bitta Stock yozuvi bo'ladi
+        // (unique index: product+branch). Agar bir chunk ichida bir xil product'ga
+        // tushadigan bir necha item kelsa (turli ID, bir xil nom), ularning qty'sini
+        // YIG'AMIZ — aks holda oxirgisi avvalgisining ustiga yozilib qoldiq kamayadi.
         const updatedAt = new Date();
+        const byProduct = new Map(); // productId -> { productId, qty, price, expiryDate, batchMap }
         for (const item of items) {
             const name = (item.name || '').trim();
             if (!name) {
@@ -95,21 +99,65 @@ async function applyChunk({ branchNumber, syncStartedAt, chunkIndex, totalChunks
                 skipped++;
                 continue;
             }
-            const price = Number(item.price) || 0;
-            const qty = Number(item.qty) || 0;
-            if (price <= 0 || qty <= 0) {
-                skipped++;
-                continue;
+
+            // MUHIM: qty va narx — T_RESEDUE_V'дан (to'g'ri, faqat bu filial).
+            // RESIDUE.batches — barcha OTDEL (filiallar)ni o'z ichiga oladi, shuning uchun
+            // batch.qty ISHONCHSIZ (jami oshib chiqadi). Batches faqat SERIA+NARX ko'rsatish uchun.
+            const itemQty = Number(item.qty) || 0;
+            const itemPrice = Number(item.price) || 0;
+            if (itemQty <= 0 || itemPrice <= 0) { skipped++; continue; }
+            const itemExp = item.expiryDate ? new Date(item.expiryDate) : null;
+            const validItemExp = itemExp && !Number.isNaN(itemExp.getTime()) ? itemExp : null;
+
+            const key = product._id.toString();
+            let agg = byProduct.get(key);
+            if (!agg) {
+                agg = { productId: product._id, qty: 0, price: 0, expiryDate: null, batchMap: new Map() };
+                byProduct.set(key, agg);
             }
-            const expiryDate = item.expiryDate ? new Date(item.expiryDate) : null;
+
+            // Qty + narx: T_RESEDUE_V (authoritative, to'g'ri filial qoldig'i)
+            agg.qty += itemQty;
+            if (agg.price === 0 || itemPrice < agg.price) agg.price = itemPrice;
+            if (validItemExp && (!agg.expiryDate || validItemExp < agg.expiryDate)) agg.expiryDate = validItemExp;
+
+            // Batches: SERIA, NARX va QTY (agent OTDEL bo'yicha filtrlaydi — qty to'g'ri)
+            if (Array.isArray(item.batches)) {
+                for (const b of item.batches) {
+                    const bp = Number(b.price) || 0;
+                    const bqty = Number(b.qty) || 0;
+                    if (bp <= 0 || bqty <= 0) continue;
+                    const seria = (b.seria || '').toString().trim();
+                    const exp = b.expiryDate ? new Date(b.expiryDate) : null;
+                    const validExp = exp && !Number.isNaN(exp.getTime()) ? exp : null;
+                    const bk = seria + '|' + bp + '|' + (validExp ? validExp.getTime() : '');
+                    if (!agg.batchMap.has(bk)) {
+                        agg.batchMap.set(bk, { seria, price: bp, qty: bqty, expiryDate: validExp });
+                    } else {
+                        agg.batchMap.get(bk).qty += bqty;
+                    }
+                }
+            }
+        }
+
+        const stockOps = [];
+        for (const agg of byProduct.values()) {
+            if (agg.qty <= 0 || agg.price <= 0) { skipped++; continue; }
+            const batches = [...agg.batchMap.values()].sort((a, b) => {
+                const ea = a.expiryDate ? a.expiryDate.getTime() : Infinity;
+                const eb = b.expiryDate ? b.expiryDate.getTime() : Infinity;
+                if (ea !== eb) return ea - eb;
+                return a.price - b.price;
+            });
             stockOps.push({
                 updateOne: {
-                    filter: { product: product._id, branch: branch._id },
+                    filter: { product: agg.productId, branch: branch._id },
                     update: {
                         $set: {
-                            price,
-                            qty,
-                            expiryDate: expiryDate && !Number.isNaN(expiryDate.getTime()) ? expiryDate : null,
+                            price: agg.price,
+                            qty: agg.qty,
+                            expiryDate: agg.expiryDate,
+                            batches,
                             updatedAt,
                         },
                     },
@@ -128,10 +176,15 @@ async function applyChunk({ branchNumber, syncStartedAt, chunkIndex, totalChunks
     if (isLast) {
         const result = await Stock.updateMany(
             { branch: branch._id, updatedAt: { $lt: startedAt }, qty: { $gt: 0 } },
-            { $set: { qty: 0, updatedAt: new Date() } }
+            { $set: { qty: 0, batches: [], updatedAt: new Date() } }
         );
         zeroed = result.modifiedCount || 0;
     }
+
+    console.log(
+        `[sync] Filial #${branchNumber} chunk ${chunkIndex + 1}/${totalChunks} — ` +
+        `upserted=${upserted}, skipped=${skipped}, zeroed=${zeroed}, finalized=${!!isLast}`
+    );
 
     return {
         branchNumber,

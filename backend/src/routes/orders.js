@@ -9,7 +9,8 @@ const { BUSINESS, STATUS_TRANSITIONS } = require('../config/constants');
 router.post('/', auth, async (req, res, next) => {
     try {
         const {
-            items, deliveryType, address, phone,
+            items, deliveryType, address, apartment, entrance, floor, yandexDropType,
+            deliveryDate, deliverySlot, phone,
             customerName, branchId, paymentMethod,
             useBonusPoints, notes,
         } = req.body;
@@ -40,15 +41,32 @@ router.post('/', auth, async (req, res, next) => {
                 });
             }
 
+            // Arzonidan boshlab batch taqsimlash
+            const sortedBatches = [...(stock.batches || [])].sort((a, b) => (a.price || 0) - (b.price || 0));
+            const breakdown = [];
+            let remaining = item.qty;
+            for (const b of sortedBatches) {
+                if (remaining <= 0) break;
+                const take = Math.min(remaining, b.qty || 0);
+                if (take > 0) {
+                    breakdown.push({ seria: b.seria || '', price: b.price, qty: take });
+                    remaining -= take;
+                }
+            }
+            const itemTotal = breakdown.length > 0
+                ? breakdown.reduce((s, b) => s + b.price * b.qty, 0)
+                : stock.price * item.qty;
+
             orderItems.push({
                 product: item.productId,
                 productName: stock.product.name,
                 price: stock.price,
                 qty: item.qty,
                 branchId,
+                batches: breakdown,
             });
 
-            subtotal += stock.price * item.qty;
+            subtotal += itemTotal;
         }
 
         // Minimal buyurtma tekshirish
@@ -59,12 +77,9 @@ router.post('/', auth, async (req, res, next) => {
         }
 
         // Yetkazib berish narxi
+        // yandex: narx Yandex tomonidan alohida olinadi — bizda 0
+        // delivery: hozircha o'chirilgan (keyinchalik)
         let deliveryCost = 0;
-        if (deliveryType === 'delivery') {
-            deliveryCost = subtotal >= BUSINESS.FREE_DELIVERY_THRESHOLD
-                ? 0
-                : BUSINESS.DELIVERY_COST;
-        }
 
         // Bonus chegirma
         let bonusDiscount = 0;
@@ -78,6 +93,10 @@ router.post('/', auth, async (req, res, next) => {
         // Bonus ball hisoblash (delivered da yoziladi)
         const bonusEarned = Math.floor(total / 10000) * BUSINESS.BONUS_RATE;
 
+        // Naqd (pickup) — to'lovni kutmasdan operator navbatiga o'tadi
+        const isCash = paymentMethod === 'cash';
+        const initialStatus = isCash ? 'pending_operator' : 'awaiting_payment';
+
         // Order yaratish
         const order = new Order({
             user: req.user._id,
@@ -87,25 +106,31 @@ router.post('/', auth, async (req, res, next) => {
             items: orderItems,
             branch: branchId,
             deliveryType,
-            address: deliveryType === 'delivery' ? address : branch.address,
+            address: deliveryType !== 'pickup' ? address : branch.address,
+            apartment: apartment || '',
+            entrance: entrance || '',
+            floor: floor || '',
+            yandexDropType: yandexDropType || 'door',
+            deliveryDate: deliveryDate || '',
+            deliverySlot: deliverySlot || '',
             subtotal,
             deliveryCost,
             bonusDiscount,
             total,
             bonusEarned,
             paymentMethod,
-            status: 'awaiting_payment',
+            status: initialStatus,
             statusHistory: [{
-                status: 'awaiting_payment',
+                status: initialStatus,
                 changedBy: 'system',
-                note: 'Buyurtma yaratildi',
+                note: isCash ? 'Aptekada to\'lov — naqd' : 'Buyurtma yaratildi',
             }],
             notes,
         });
 
         await order.save();
 
-        // To'lov URL yaratish
+        // To'lov URL yaratish (naqd uchun kerak emas)
         let paymentUrl = '';
         if (paymentMethod === 'click') {
             paymentUrl = `https://my.click.uz/services/pay?service_id=${process.env.CLICK_SERVICE_ID}&merchant_id=${process.env.CLICK_MERCHANT_ID}&amount=${total}&transaction_param=${order.orderNumber}&merchant_user_id=${process.env.CLICK_MERCHANT_USER_ID}&return_url=${encodeURIComponent(process.env.WEBAPP_URL || process.env.FRONTEND_URL || 'https://t.me/' + process.env.BOT_USERNAME)}`;

@@ -6,6 +6,12 @@ const orderItemSchema = new mongoose.Schema({
     price: { type: Number, default: 0 },
     qty: { type: Number, default: 1 },
     branchId: { type: mongoose.Schema.Types.ObjectId, ref: 'Branch' },
+    batches: [{
+        seria: { type: String, default: '' },
+        price: { type: Number, default: 0 },
+        qty: { type: Number, default: 0 },
+        _id: false,
+    }],
 }, { _id: false });
 
 const statusHistorySchema = new mongoose.Schema({
@@ -31,10 +37,16 @@ const orderSchema = new mongoose.Schema({
 
     deliveryType: {
         type: String,
-        enum: ['delivery', 'pickup'],
+        enum: ['delivery', 'yandex', 'pickup'],
         default: 'delivery',
     },
     address: { type: String, default: '' },
+    apartment:      { type: String, default: '' },
+    entrance:       { type: String, default: '' },
+    floor:          { type: String, default: '' },
+    yandexDropType:  { type: String, enum: ['door', 'entrance'], default: 'door' },
+    deliveryDate:    { type: String, default: '' }, // "2026-06-05"
+    deliverySlot:    { type: String, default: '' }, // "14:00–16:00"
 
     subtotal: { type: Number, default: 0 },
     deliveryCost: { type: Number, default: 0 },
@@ -44,7 +56,7 @@ const orderSchema = new mongoose.Schema({
 
     paymentMethod: {
         type: String,
-        enum: ['click', 'payme'],
+        enum: ['click', 'payme', 'cash'],
         default: 'click',
     },
     paymentStatus: {

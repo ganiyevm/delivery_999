@@ -1,6 +1,7 @@
 const router = require('express').Router();
 const Product = require('../models/Product');
 const Stock = require('../models/Stock');
+const Branch = require('../models/Branch');
 const { buildSearchRegex } = require('../utils/translit');
 
 // ─── Mahsulotlar royxati (search, filter, pagination) ───
@@ -60,10 +61,12 @@ router.get('/', async (req, res, next) => {
                 p.inStock = (stock?.qty || 0) > 0;
             });
         } else {
-            // Barcha filiallardan eng arzon narx va jami qoldiq
+            // Faqat isSynced=true filiallardan eng arzon narx va jami qoldiq
+            const syncedBranches = await Branch.find({ isSynced: true }, '_id').lean();
+            const syncedIds = syncedBranches.map(b => b._id);
             const productIds = products.map(p => p._id);
             const stockAgg = await Stock.aggregate([
-                { $match: { product: { $in: productIds } } },
+                { $match: { product: { $in: productIds }, branch: { $in: syncedIds } } },
                 {
                     $group: {
                         _id: '$product',
@@ -112,7 +115,7 @@ router.get('/:id', async (req, res, next) => {
 
         // Barcha filiallardagi qoldiq va narx
         const stocks = await Stock.find({ product: product._id })
-            .populate('branch', 'number name address isOpen hours')
+            .populate('branch', 'number name address isOpen hours isSynced')
             .lean();
 
         product.stocks = stocks.map(s => ({
@@ -120,10 +123,17 @@ router.get('/:id', async (req, res, next) => {
             price: s.price,
             qty: s.qty,
             inStock: s.qty > 0,
+            batches: (s.batches || []).map(b => ({
+                seria: b.seria || '',
+                price: b.price,
+                qty: b.qty,
+                expiryDate: b.expiryDate,
+            })),
         }));
 
-        product.minPrice = stocks.length > 0 ? Math.min(...stocks.map(s => s.price)) : 0;
-        product.totalQty = stocks.reduce((sum, s) => sum + s.qty, 0);
+        const syncedStocks = stocks.filter(s => s.branch?.isSynced === true && s.qty > 0);
+        product.minPrice = syncedStocks.length > 0 ? Math.min(...syncedStocks.map(s => s.price)) : 0;
+        product.totalQty = syncedStocks.reduce((sum, s) => sum + s.qty, 0);
 
         res.json(product);
     } catch (error) {

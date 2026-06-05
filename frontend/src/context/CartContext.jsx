@@ -21,13 +21,13 @@ export function CartProvider({ children }) {
         toastTimer.current = setTimeout(() => setToast(null), 2200);
     };
 
-    const addToCart = (product, branchId) => {
+    const addToCart = (product, branchId, qty = 1) => {
         setItems(prev => {
             const existing = prev.find(i => i.productId === product._id);
             if (existing) {
                 return prev.map(i =>
                     i.productId === product._id
-                        ? { ...i, qty: i.qty + 1 }
+                        ? { ...i, qty: i.qty + qty }
                         : i
                 );
             }
@@ -37,7 +37,7 @@ export function CartProvider({ children }) {
                 price: product.price,
                 imageType: product.imageType || 'blister',
                 category: product.category,
-                qty: 1,
+                qty,
                 branchId,
             }];
         });

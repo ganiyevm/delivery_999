@@ -359,14 +359,41 @@ export default function OrdersList() {
                                         }}>✅ {t('confirm')}</button>
                                 )}
                             </p>
+                            {selected.deliveryDate && (
+                                <p>
+                                    <strong>⏰ Yetkazish vaqti:</strong>{' '}
+                                    {selected.deliveryDate} {selected.deliverySlot && `• ${selected.deliverySlot}`}
+                                    {selected.yandexDropType && (
+                                        <span style={{ marginLeft: 8, fontSize: 12, color: 'var(--text-secondary)' }}>
+                                            ({selected.yandexDropType === 'door' ? '🚪 Eshikka qadar' : '🏢 Kirish oldiga'})
+                                        </span>
+                                    )}
+                                </p>
+                            )}
                             <p><strong>{t('total')}:</strong> {selected.total?.toLocaleString()} so'm</p>
                         </div>
                         <h4 style={{ margin: '16px 0 8px' }}>{t('products')}:</h4>
-                        {selected.items?.map((item, i) => (
-                            <div key={i} style={{ padding: '6px 0', borderBottom: '1px solid var(--border)', fontSize: 13 }}>
-                                {item.productName} × {item.qty} — {(item.price * item.qty).toLocaleString()} so'm
-                            </div>
-                        ))}
+                        {selected.items?.map((item, i) => {
+                            const itemTotal = item.batches?.length
+                                ? item.batches.reduce((s, b) => s + b.price * b.qty, 0)
+                                : item.price * item.qty;
+                            return (
+                                <div key={i} style={{ padding: '8px 0', borderBottom: '1px solid var(--border)', fontSize: 13 }}>
+                                    <div style={{ fontWeight: 600 }}>
+                                        {item.productName} × {item.qty} — {itemTotal.toLocaleString()} so'm
+                                    </div>
+                                    {item.batches?.length > 0 && (
+                                        <div style={{ marginTop: 4, display: 'flex', flexDirection: 'column', gap: 2 }}>
+                                            {item.batches.map((b, bi) => (
+                                                <div key={bi} style={{ fontSize: 12, color: 'var(--text-secondary)', paddingLeft: 12 }}>
+                                                    Серия {b.seria || '—'}: {b.qty} та × {b.price.toLocaleString()} = {(b.price * b.qty).toLocaleString()} so'm
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
+                                </div>
+                            );
+                        })}
                         <h4 style={{ margin: '16px 0 8px' }}>{t('status')}:</h4>
                         <div className="timeline">
                             {selected.statusHistory?.map((s, i) => (
