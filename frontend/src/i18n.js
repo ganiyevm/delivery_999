@@ -8,6 +8,14 @@ const translations = {
 
         // ── Home ───────────────────────────────────────────────────────────
         appName: 'Apteka 999',
+        currency: "so'm",
+        addedToCart: "Savatga qo'shildi",
+        viewCart: "Savatni ko'rish",
+        loadError: 'Yuklashda xatolik',
+        retry: 'Qayta urinish',
+        seriaLabel: 'Seriya',
+        batchesTitle: 'Partiyalar (narx/seriya)',
+        untilDate: 'gacha',
         branchSubtitle: "Toshkent bo'ylab {n} filial",
         searchPlaceholder: 'Dori, tarkib yoki analog...',
         promoTitle: '🎉 Birinchi buyurtmada',
@@ -199,6 +207,14 @@ const translations = {
 
         // ── Home ───────────────────────────────────────────────────────────
         appName: 'Сеть Аптек 999',
+        currency: 'сум',
+        addedToCart: 'Добавлено в корзину',
+        viewCart: 'Корзина',
+        loadError: 'Ошибка загрузки',
+        retry: 'Повторить',
+        seriaLabel: 'Серия',
+        batchesTitle: 'Партии (цена/серия)',
+        untilDate: 'до',
         branchSubtitle: 'По Ташкенту {n} аптек',
         searchPlaceholder: 'Лекарство, состав или аналог...',
         promoTitle: '🎉 На первый заказ',
@@ -390,6 +406,14 @@ const translations = {
 
         // ── Home ───────────────────────────────────────────────────────────
         appName: 'Pharmacy 999',
+        currency: 'sum',
+        addedToCart: 'Added to cart',
+        viewCart: 'View cart',
+        loadError: 'Loading error',
+        retry: 'Retry',
+        seriaLabel: 'Series',
+        batchesTitle: 'Batches (price/series)',
+        untilDate: 'until',
         branchSubtitle: '{n} branches in Tashkent',
         searchPlaceholder: 'Medicine, ingredient or analog...',
         promoTitle: '🎉 First order bonus',

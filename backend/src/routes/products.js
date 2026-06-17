@@ -3,6 +3,19 @@ const Product = require('../models/Product');
 const Stock = require('../models/Stock');
 const Branch = require('../models/Branch');
 const { buildSearchRegex } = require('../utils/translit');
+const cache = require('../utils/cache');
+
+const SYNCED_BRANCHES_TTL = 30_000;  // 30 soniya — branch isSynced kam o'zgaradi
+const COUNT_TTL = 60_000;             // 1 daqiqa — total count
+
+async function getSyncedBranchIds() {
+    const cached = cache.get('synced_branches');
+    if (cached) return cached;
+    const branches = await Branch.find({ isSynced: true }, '_id').lean();
+    const ids = branches.map(b => b._id);
+    cache.set('synced_branches', ids, SYNCED_BRANCHES_TTL);
+    return ids;
+}
 
 // ─── Mahsulotlar royxati (search, filter, pagination) ───
 router.get('/', async (req, res, next) => {
@@ -36,9 +49,11 @@ router.get('/', async (req, res, next) => {
             query = query.sort({ name: 1 });
         }
 
-        const [products, total] = await Promise.all([
+        const countKey = `count:${JSON.stringify(filter)}`;
+        let total = cache.get(countKey);
+        const [products] = await Promise.all([
             query.skip(skip).limit(parseInt(limit)).lean(),
-            Product.countDocuments(filter),
+            total === null ? Product.countDocuments(filter).then(n => { total = n; cache.set(countKey, n, COUNT_TTL); }) : Promise.resolve(),
         ]);
 
         // Agar branchId berilgan bo'lsa, stock ma'lumotini qo'shish
@@ -61,9 +76,7 @@ router.get('/', async (req, res, next) => {
                 p.inStock = (stock?.qty || 0) > 0;
             });
         } else {
-            // Faqat isSynced=true filiallardan eng arzon narx va jami qoldiq
-            const syncedBranches = await Branch.find({ isSynced: true }, '_id').lean();
-            const syncedIds = syncedBranches.map(b => b._id);
+            const syncedIds = await getSyncedBranchIds();
             const productIds = products.map(p => p._id);
             const stockAgg = await Stock.aggregate([
                 { $match: { product: { $in: productIds }, branch: { $in: syncedIds } } },

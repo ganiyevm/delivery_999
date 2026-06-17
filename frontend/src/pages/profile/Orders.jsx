@@ -54,16 +54,28 @@ function PayButton({ order, t, onSuccess }) {
         setPhase('opening');
         try {
             const { data } = await ordersAPI.getPaymentUrl(order._id);
-            if (!data.paymentUrl) { setPhase('error'); return; }
+            if (!data.paymentUrl) {
+                alert('To\'lov havolasi yaratilmadi. Buyurtma holati: ' + order.status);
+                setPhase('idle');
+                return;
+            }
+
+            // Click/Payme bare WEBAPP_URL ga qaytaradi — qaytib kelganda
+            // App.jsx Payment sahifasini tiklashi uchun belgilab qo'yamiz.
+            localStorage.setItem('pendingPaymentOrderId', order._id);
 
             // Tashqi brauzerda ochish
-            if (tg?.openLink) tg.openLink(data.paymentUrl, { try_instant_view: false });
-            else window.open(data.paymentUrl, '_blank');
+            if (tg?.openLink) {
+                tg.openLink(data.paymentUrl, { try_instant_view: false });
+            } else {
+                window.open(data.paymentUrl, '_blank');
+            }
 
-            // To'lov kutish rejimi
             setPhase('waiting');
-        } catch (_) {
-            setPhase('error');
+        } catch (err) {
+            const msg = err?.response?.data?.error || err?.message || 'Noma\'lum xato';
+            alert('To\'lov xatosi: ' + msg);
+            setPhase('idle');
         }
     };
 

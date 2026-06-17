@@ -100,16 +100,19 @@ const CATEGORY_COLORS = {
     other: '#95a5a6',
 };
 
-export default function DrugImage({ imageType, imageUrl, category, size = 72 }) {
+export default function DrugImage({ imageType, imageUrl, category, size = 72, fit = 'contain' }) {
     const [imgError, setImgError] = useState(false);
 
     if (imageUrl && !imgError) {
+        // Rasm o'z katakchasini to'liq egallaydi. fit='cover' — oq kartani to'ldiradi
+        // (ortiqcha oq chetlar kesiladi); fit='contain' — nisbat saqlanadi (kesilmaydi).
+        const pad = fit === 'cover' ? 0 : 4;
         return (
-            <div style={{ width: size, height: size, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 12 }}>
+            <div style={{ width: '100%', height: '100%', minWidth: size, minHeight: size, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: pad, boxSizing: 'border-box' }}>
                 <img
                     src={imageUrl}
                     alt=""
-                    style={{ width: '100%', height: '100%', objectFit: 'contain' }}
+                    style={{ width: '100%', height: '100%', objectFit: fit }}
                     onError={() => setImgError(true)}
                 />
             </div>

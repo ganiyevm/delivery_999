@@ -1,4 +1,4 @@
-require('dotenv').config({ path: '../backend/.env' });
+require('dotenv').config({ path: require('path').join(__dirname, '../backend/.env') });
 const { Bot, session, webhookCallback } = require('grammy');
 const mongoose = require('../backend/node_modules/mongoose');
 const express = require('express');

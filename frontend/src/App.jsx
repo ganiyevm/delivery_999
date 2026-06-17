@@ -1,6 +1,7 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { CartProvider, useCart } from './context/CartContext';
+import { useT } from './i18n';
 import BottomNav from './components/BottomNav';
 import Home from './pages/Home';
 import Catalog from './pages/Catalog';
@@ -19,6 +20,7 @@ import Scanner from './pages/Scanner';
 /* ── Toast: mahsulot qo'shildi xabarnomasi ─────────────────────── */
 function CartToast() {
     const { toast } = useCart();
+    const { t } = useT();
     if (!toast) return null;
     return (
         <div style={{
@@ -32,7 +34,7 @@ function CartToast() {
             maxWidth: 'calc(100vw - 32px)', whiteSpace: 'nowrap',
             overflow: 'hidden', textOverflow: 'ellipsis',
         }}>
-            🛒 Savatga qo'shildi
+            🛒 {t('addedToCart')}
         </div>
     );
 }
@@ -40,6 +42,7 @@ function CartToast() {
 /* ── Float cart bar: savat to'ldirilganda pastda ko'rinadi ─────── */
 function FloatCartBar({ page, onNavigate }) {
     const { count, total } = useCart();
+    const { t } = useT();
     const hide = count === 0 || ['cart', 'payment', 'productDetail'].includes(page);
     if (hide) return null;
     return (
@@ -60,49 +63,115 @@ function FloatCartBar({ page, onNavigate }) {
                     width: 26, height: 26, display: 'flex', alignItems: 'center',
                     justifyContent: 'center', fontWeight: 800, fontSize: 13, color: '#fff',
                 }}>{count}</span>
-                <span style={{ color: '#fff', fontWeight: 700, fontSize: 14 }}>Savatni ko'rish</span>
+                <span style={{ color: '#fff', fontWeight: 700, fontSize: 14 }}>{t('viewCart')}</span>
             </div>
             <span style={{ color: '#fff', fontWeight: 800, fontSize: 15 }}>
-                {total.toLocaleString()} сўм
+                {total.toLocaleString()} {t('currency')}
             </span>
         </button>
     );
 }
 
 function AppContent() {
-    const [page, setPage] = useState('home');
-    const [productId, setProductId] = useState(null);
-    const [paymentOrderId, setPaymentOrderId] = useState(null);
-    const [catalogCategory, setCatalogCategory] = useState('');
+    // Navigatsiya tarixi (stack) — orqaga qaytish va Telegram BackButton uchun
+    const [stack, setStack] = useState([{ page: 'home' }]);
+    const current = stack[stack.length - 1];
+    const { page, productId, paymentOrderId, catalogCategory } = current;
     const { loading, error, retryAuth } = useAuth();
 
-    // Dark mode persist
-    useEffect(() => {
-        const theme = localStorage.getItem('theme');
-        if (theme) document.documentElement.setAttribute('data-theme', theme);
+    // Tab/sahifaga o'tish. Sahifa stackda bo'lsa — o'shanga qaytadi (tab kabi),
+    // bo'lmasa — tepaga qo'shadi. Shu bilan orqaga tugmasi doim mantiqiy ishlaydi.
+    const navigate = useCallback((p, opts = {}) => {
+        const extra = p === 'catalog' ? { catalogCategory: opts?.category || '' } : {};
+        setStack(prev => {
+            const top = prev[prev.length - 1];
+            if (top.page === p) return [...prev.slice(0, -1), { ...top, ...extra }];
+            const idx = prev.findIndex(e => e.page === p);
+            if (idx >= 0) return [...prev.slice(0, idx), { ...prev[idx], ...extra }];
+            return [...prev, { page: p, ...extra }];
+        });
+        window.scrollTo(0, 0);
     }, []);
 
-    // Click/Payme dan qaytganda — pending to'lovni tiklash
+    const goBack = useCallback(() => {
+        setStack(prev => (prev.length > 1 ? prev.slice(0, -1) : prev));
+        window.scrollTo(0, 0);
+    }, []);
+
+    const openProduct = useCallback((product) => {
+        setStack(prev => [...prev, { page: 'productDetail', productId: product._id }]);
+        window.scrollTo(0, 0);
+    }, []);
+
+    const openPayment = useCallback((id) => {
+        setStack(prev => [...prev, { page: 'payment', paymentOrderId: id }]);
+        window.scrollTo(0, 0);
+    }, []);
+
+    // To'lovdan keyin yangi kontekst — orqada faqat 'home' qoladi
+    const finishTo = useCallback((p) => {
+        setStack(p === 'home' ? [{ page: 'home' }] : [{ page: 'home' }, { page: p }]);
+        window.scrollTo(0, 0);
+    }, []);
+
+    // Telegram mavzusi (dark/light) — foydalanuvchi qo'lda tanlamagan bo'lsa, Telegram'ga ergashadi
     useEffect(() => {
+        const tg = window.Telegram?.WebApp;
+        const saved = localStorage.getItem('theme');
+        if (saved) document.documentElement.setAttribute('data-theme', saved);
+        else if (tg?.colorScheme) document.documentElement.setAttribute('data-theme', tg.colorScheme);
+
+        const onTheme = () => {
+            if (!localStorage.getItem('theme') && tg?.colorScheme)
+                document.documentElement.setAttribute('data-theme', tg.colorScheme);
+        };
+        tg?.onEvent?.('themeChanged', onTheme);
+        return () => tg?.offEvent?.('themeChanged', onTheme);
+    }, []);
+
+    // Operator tasdiqlagandan keyin ?pay=orderId bilan ochilsa — to'lov sahifasi
+    useEffect(() => {
+        const params = new URLSearchParams(window.location.search);
+        const startParam = window.Telegram?.WebApp?.initDataUnsafe?.start_param
+            || params.get('tgWebAppStartParam')
+            || '';
+        const startMatch = /^pay_([a-f\d]{24})(?:_(.+))?$/i.exec(startParam);
+        const payId = params.get('pay') || startMatch?.[1];
+        const returnedClickTransId = params.get('click_trans_id')
+            || params.get('payment_id')
+            || params.get('paymentId')
+            || params.get('transaction_id')
+            || params.get('id')
+            || startMatch?.[2];
+        if (payId) {
+            // Click web checkout qaytganda payment id turli nomlar bilan kelishi mumkin.
+            if (returnedClickTransId) localStorage.setItem(`click_trans_${payId}`, returnedClickTransId);
+            setStack([{ page: 'home' }, { page: 'payment', paymentOrderId: payId }]);
+            return;
+        }
+        // Click/Payme dan qaytganda — pending to'lovni tiklash
         const pendingId = localStorage.getItem('pendingPaymentOrderId');
         if (pendingId) {
             localStorage.removeItem('pendingPaymentOrderId');
-            setPaymentOrderId(pendingId);
-            setPage('payment');
+            if (returnedClickTransId) localStorage.setItem(`click_trans_${pendingId}`, returnedClickTransId);
+            setStack([{ page: 'home' }, { page: 'payment', paymentOrderId: pendingId }]);
         }
     }, []);
 
-    const navigate = (p, opts) => {
-        if (p === 'catalog' && opts?.category) setCatalogCategory(opts.category);
-        else setCatalogCategory('');
-        setPage(p);
-        window.scrollTo(0, 0);
-    };
+    // Telegram BackButton — stackда birdan ortiq sahifa bo'lsa ko'rsatiladi
+    useEffect(() => {
+        const bb = window.Telegram?.WebApp?.BackButton;
+        if (!bb) return;
+        if (stack.length > 1) bb.show?.(); else bb.hide?.();
+    }, [stack.length]);
 
-    const openProduct = (product) => {
-        setProductId(product._id);
-        setPage('productDetail');
-    };
+    useEffect(() => {
+        const bb = window.Telegram?.WebApp?.BackButton;
+        if (!bb?.onClick) return;
+        const handler = () => goBack();
+        bb.onClick(handler);
+        return () => { try { bb.offClick?.(handler); } catch { /* ignore */ } };
+    }, [goBack]);
 
     if (loading) {
         return (
@@ -139,17 +208,17 @@ function AppContent() {
             <CartToast />
             {page === 'home' && <Home onNavigate={navigate} onProduct={openProduct} onScanner={() => navigate('scanner')} />}
             {page === 'catalog' && <Catalog onProduct={openProduct} initialCategory={catalogCategory} />}
-            {page === 'productDetail' && <ProductDetail productId={productId} onBack={() => setPage('catalog')} />}
+            {page === 'productDetail' && <ProductDetail productId={productId} onBack={goBack} />}
             {page === 'branches' && <Branches />}
-            {page === 'cart' && <Cart onNavigate={navigate} onPayment={id => { setPaymentOrderId(id); setPage('payment'); }} />}
-            {page === 'payment' && <Payment orderId={paymentOrderId} onDone={navigate} />}
+            {page === 'cart' && <Cart onNavigate={navigate} onPayment={openPayment} />}
+            {page === 'payment' && <Payment orderId={paymentOrderId} onDone={finishTo} />}
             {page === 'profile' && <Profile onNavigate={navigate} />}
-            {page === 'favorites' && <Favorites onBack={() => setPage('profile')} onProduct={openProduct} />}
-            {page === 'orders' && <Orders onBack={() => setPage('profile')} />}
-            {page === 'addresses' && <Addresses onBack={() => setPage('profile')} />}
-            {page === 'bonus' && <Bonus onBack={() => setPage('profile')} />}
-            {page === 'settings' && <Settings onBack={() => setPage('profile')} />}
-            {page === 'scanner' && <Scanner onBack={() => setPage('home')} />}
+            {page === 'favorites' && <Favorites onBack={goBack} onProduct={openProduct} />}
+            {page === 'orders' && <Orders onBack={goBack} />}
+            {page === 'addresses' && <Addresses onBack={goBack} />}
+            {page === 'bonus' && <Bonus onBack={goBack} />}
+            {page === 'settings' && <Settings onBack={goBack} />}
+            {page === 'scanner' && <Scanner onBack={goBack} />}
             {showNav && <BottomNav active={page} onNavigate={navigate} />}
             <FloatCartBar page={page} onNavigate={navigate} />
         </>

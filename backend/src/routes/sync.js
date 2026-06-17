@@ -22,7 +22,12 @@ function authMiddleware(req, res, next) {
     next();
 }
 
-router.post('/inbound', authMiddleware, async (req, res, next) => {
+router.post('/inbound', authMiddleware, (req, res, next) => {
+    // Katta chunk upload uchun timeout uzaytiriladi (jprq tunnel sekin bo'lishi mumkin)
+    req.setTimeout(120_000);
+    res.setTimeout(120_000);
+    next();
+}, async (req, res, next) => {
     try {
         const { branchNumber, syncStartedAt, chunkIndex, totalChunks, isLast, items } = req.body || {};
 

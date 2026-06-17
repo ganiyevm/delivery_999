@@ -1,7 +1,30 @@
 const Product = require('../models/Product');
 const Stock = require('../models/Stock');
 const Branch = require('../models/Branch');
-const { autoCategory } = require('../config/constants');
+const { autoCategory, BRANCHES_SEED } = require('../config/constants');
+const cache = require('../utils/cache');
+
+const BRANCH_COORDS = new Map([
+    [1,  { lat: 41.3135, lng: 69.3537 }],
+    [2,  { lat: 41.3399, lng: 69.3126 }],
+    [3,  { lat: 41.2782, lng: 69.2104 }],
+    [4,  { lat: 41.2741, lng: 69.2012 }],
+    [5,  { lat: 41.3092, lng: 69.2771 }],
+    [6,  { lat: 41.3486, lng: 69.3091 }],
+    [7,  { lat: 41.2952, lng: 69.2720 }],
+    [8,  { lat: 41.3065, lng: 69.2793 }],
+    [9,  { lat: 41.3261, lng: 69.3326 }],
+    [10, { lat: 41.3282, lng: 69.3421 }],
+    [11, { lat: 41.3643, lng: 69.2933 }],
+    [12, { lat: 41.3195, lng: 69.3612 }],
+    [14, { lat: 41.3017, lng: 69.2647 }],
+    [15, { lat: 41.3512, lng: 69.3154 }],
+    [16, { lat: 41.3567, lng: 69.3230 }],
+    [17, { lat: 41.2157, lng: 69.2832 }],
+    [18, { lat: 41.3318, lng: 69.3598 }],
+    [19, { lat: 41.3201, lng: 69.3702 }],
+    [20, { lat: 41.3658, lng: 69.3045 }],
+]);
 
 /**
  * Filial sync agent'dan kelgan chunk'ni qabul qilib MongoDB'ga yozish.
@@ -11,9 +34,24 @@ const { autoCategory } = require('../config/constants');
  * stock yozuvlari qty=0 qilib qo'yiladi (ya'ni qoldiqdan tushib qolgan tovarlar).
  */
 async function applyChunk({ branchNumber, syncStartedAt, chunkIndex, totalChunks, isLast, items }) {
-    const branch = await Branch.findOne({ number: branchNumber });
+    let branch = await Branch.findOne({ number: branchNumber });
     if (!branch) {
-        throw new Error(`Filial #${branchNumber} bazada topilmadi (avval seed-branches.js ishga tushiring)`);
+        const seed = BRANCHES_SEED.find(b => b.number === branchNumber);
+        const displayName = seed
+            ? `Аптека №${String(branchNumber).padStart(3, '0')} (${seed.name})`
+            : `Аптека №${String(branchNumber).padStart(3, '0')}`;
+        branch = await Branch.create({
+            number: branchNumber,
+            name: displayName,
+            location: BRANCH_COORDS.get(branchNumber) || { lat: 0, lng: 0 },
+            isOpen: true,
+            isActive: true,
+            isSynced: true,
+        });
+        console.log(`[sync] Filial #${branchNumber} bazada yo'q edi — avtomatik yaratildi`);
+    } else if (!branch.isSynced) {
+        branch.isSynced = true;
+        await branch.save();
     }
 
     const startedAt = new Date(syncStartedAt);
@@ -180,6 +218,9 @@ async function applyChunk({ branchNumber, syncStartedAt, chunkIndex, totalChunks
         );
         zeroed = result.modifiedCount || 0;
     }
+
+    // Yangi mahsulot qo'shilgan bo'lishi mumkin — count cache ni tozalaymiz
+    cache.delByPrefix('count:');
 
     console.log(
         `[sync] Filial #${branchNumber} chunk ${chunkIndex + 1}/${totalChunks} — ` +

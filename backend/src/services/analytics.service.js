@@ -92,7 +92,7 @@ class AnalyticsService {
                         _id: {
                             $subtract: [
                                 { $subtract: ['$createdAt', { $multiply: [{ $subtract: [{ $dayOfWeek: '$createdAt' }, 2] }, 86400000] }] },
-                                { $mod: [{ $subtract: ['$createdAt', 0] }, 86400000] },
+                                { $mod: [{ $toLong: '$createdAt' }, 86400000] },
                             ],
                         },
                         totalRevenue: { $sum: { $cond: [{ $eq: ['$status', 'delivered'] }, '$total', 0] } },

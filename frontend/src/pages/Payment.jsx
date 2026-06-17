@@ -3,8 +3,8 @@ import { paymentAPI } from '../api/index';
 import { useCart } from '../context/CartContext';
 import { useT } from '../i18n';
 
-const DB_POLL_INTERVAL  = 5000;
-const API_CHECK_INTERVAL = 15000;
+const DB_POLL_INTERVAL  = 4000;
+const API_CHECK_INTERVAL = 8000;
 const TIMEOUT_MS = 5 * 60 * 1000;
 
 export default function Payment({ orderId, onDone }) {
@@ -15,7 +15,25 @@ export default function Payment({ orderId, onDone }) {
     const [checking, setChecking] = useState(false);
     const [checkError, setCheckError] = useState('');
     const [payMethod, setPayMethod] = useState('');
+    const [payUrl, setPayUrl] = useState('');
     const { clearCart } = useCart();
+
+    // Click/Payme web checkout havolasini olish.
+    // Buyurtma allaqachon to'langan/holat boshqa bo'lsa backend 400 qaytaradi — e'tiborsiz.
+    useEffect(() => {
+        if (!orderId) return;
+        paymentAPI.getUrl(orderId)
+            .then(({ data }) => { if (data?.paymentUrl) setPayUrl(data.paymentUrl); })
+            .catch(() => {});
+    }, [orderId]);
+
+    // Web checkout ochish
+    const openPayment = () => {
+        if (!payUrl) return;
+        // Qaytib kelganda Payment sahifasi tiklanishi uchun belgilab qo'yamiz
+        localStorage.setItem('pendingPaymentOrderId', orderId);
+        window.location.assign(payUrl);
+    };
 
     useEffect(() => {
         if (!orderId) return;
@@ -57,7 +75,8 @@ export default function Payment({ orderId, onDone }) {
                     const res = await paymentAPI.checkPayme(orderId);
                     data = res.data;
                 } else {
-                    const res = await paymentAPI.checkClick(orderId);
+                    const transId = localStorage.getItem(`click_trans_${orderId}`);
+                    const res = await paymentAPI.checkClick(orderId, transId ? { trans_id: transId } : undefined);
                     data = res.data;
                 }
                 if (data.paid) {
@@ -158,16 +177,27 @@ export default function Payment({ orderId, onDone }) {
                 ) : (
                     <>
                         <div className="payment-loader" />
-                        <h2>{t('confirmingPayment')}</h2>
+                        <h2>{payMethod === 'click' ? '💳 Click' : (payUrl ? `💳 ${providerName}` : t('confirmingPayment'))}</h2>
+
                         <p>
                             {providerName || t('paymentSystem')} {t('paymentProviderMsg')}<br />
                             {t('autoUpdateMsg')}
                         </p>
 
+                        {/* Click/Payme — web checkout */}
+                        {payUrl && (
+                            <button
+                                className="btn-primary"
+                                style={{ marginTop: 24, maxWidth: 280, margin: '24px auto 0' }}
+                                onClick={openPayment}>
+                                💳 {providerName} orqali to'lash
+                            </button>
+                        )}
+
                         <button
-                            className="btn-primary"
+                            className={payUrl ? 'btn' : 'btn-primary'}
                             disabled={checking}
-                            style={{ marginTop: 24, maxWidth: 280, margin: '24px auto 0', opacity: checking ? 0.7 : 1 }}
+                            style={{ marginTop: payUrl ? 10 : 24, maxWidth: 280, margin: payUrl ? '10px auto 0' : '24px auto 0', opacity: checking ? 0.7 : 1 }}
                             onClick={async () => {
                                 setChecking(true);
                                 setCheckError('');
@@ -177,7 +207,8 @@ export default function Payment({ orderId, onDone }) {
                                         const res = await paymentAPI.checkPayme(orderId);
                                         data = res.data;
                                     } else {
-                                        const res = await paymentAPI.checkClick(orderId);
+                                        const transId = localStorage.getItem(`click_trans_${orderId}`);
+                                        const res = await paymentAPI.checkClick(orderId, transId ? { trans_id: transId } : undefined);
                                         data = res.data;
                                     }
                                     if (data.paid) {

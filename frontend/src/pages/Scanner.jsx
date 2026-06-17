@@ -1,8 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
-import axios from 'axios';
+import api from '../api/axios';
 import { useT } from '../i18n';
-
-const API = import.meta.env.VITE_API_URL || '';
 
 const tg = () => window?.Telegram?.WebApp;
 const tgVersion = () => parseFloat(tg()?.version || '0');
@@ -33,7 +31,7 @@ export default function Scanner({ onBack }) {
         setLoading(true);
         setResult(null);
         try {
-            const { data } = await axios.post(`${API}/api/verify-marking`, { code: c });
+            const { data } = await api.post('/verify-marking', { code: c });
             setResult(data);
         } catch {
             setResult({ status: 'error', message: t('serverError') });

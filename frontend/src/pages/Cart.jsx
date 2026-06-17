@@ -9,6 +9,13 @@ import { showAlert } from '../utils/telegram';
 
 const DAY_NAMES = ['Bugun', 'Ertaga', 'Indinga'];
 
+function normalizeUzPhone(raw) {
+    let digits = String(raw || '').replace(/\D/g, '');
+    if (digits.length === 9) digits = '998' + digits;
+    if (digits.length === 12 && digits.startsWith('998')) return digits;
+    return '';
+}
+
 function DeliveryTimePicker({ deliveryDate, setDeliveryDate, deliverySlot, setDeliverySlot }) {
     const days = useMemo(() => Array.from({ length: 3 }, (_, i) => {
         const d = new Date();
@@ -73,7 +80,7 @@ function DeliveryTimePicker({ deliveryDate, setDeliveryDate, deliverySlot, setDe
 
 export default function Cart({ onNavigate, onPayment }) {
     const { items, removeFromCart, updateQty, clearCart, total } = useCart();
-    const { user } = useAuth();
+    const { user, token, loading: authLoading, retryAuth } = useAuth();
     const { t } = useT();
     const [deliveryType, setDeliveryType] = useState('delivery');
     const [paymentMethod, setPaymentMethod] = useState('click');
@@ -196,7 +203,16 @@ export default function Cart({ onNavigate, onPayment }) {
     const grandTotal = total + (deliveryCost || 0) - bonusDiscount;
 
     const handleSubmit = async () => {
+        // Auth yuklanayotgan bo'lsa kuting
+        if (authLoading) return showAlert('Tizimga kirish davom etmoqda, biroz kuting...');
+        // Token yo'q bo'lsa qayta auth qilishga harakat
+        if (!token) {
+            retryAuth();
+            return showAlert('Tizimga kirish talab qilinadi. Iltimos, qayta urinib ko\'ring.');
+        }
         if (!phone || !name) return showAlert(t('namePhoneRequired'));
+        const normalizedPhone = normalizeUzPhone(phone);
+        if (!normalizedPhone) return showAlert('Telefon raqamini to\'g\'ri kiriting: +998 90 123-45-67');
         if (deliveryType === 'yandex' && !address) return showAlert('Manzilni kiriting');
         if (deliveryType === 'yandex' && !deliveryDate) return showAlert('Yetkazish sanasini tanlang');
         if (deliveryType === 'yandex' && !deliverySlot) return showAlert('Yetkazish vaqtini kiriting');
@@ -211,7 +227,7 @@ export default function Cart({ onNavigate, onPayment }) {
             const { data } = await ordersAPI.create({
                 items: items.map(i => ({ productId: i.productId, qty: i.qty })),
                 deliveryType, address, apartment, entrance, floor, yandexDropType,
-                deliveryDate, deliverySlot, phone,
+                deliveryDate, deliverySlot, phone: normalizedPhone,
                 customerName: name,
                 branchId: selectedBranch,
                 paymentMethod,
@@ -467,7 +483,7 @@ export default function Cart({ onNavigate, onPayment }) {
                 <div style={{ fontSize: 12, color: 'var(--text-secondary)', textAlign: 'center', marginBottom: 8, lineHeight: 1.5 }}>
                     📋 Buyurtma berilgach apteka tekshiradi — to'lov havolasi botdan yuboriladi
                 </div>
-                <button className="btn-primary" onClick={handleSubmit} disabled={submitting}>
+                <button className="btn-primary" onClick={handleSubmit} disabled={submitting || authLoading || !token}>
                     {submitting ? '⏳ Yuborilmoqda...' : `📋 Buyurtma berish • ${grandTotal.toLocaleString()} ${t('currency')}`}
                 </button>
             </div>

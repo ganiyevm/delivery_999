@@ -66,6 +66,7 @@ const orderSchema = new mongoose.Schema({
     },
     paymentId: { type: String, default: '' },
     clickPrepareId: { type: String, default: '' }, // Click prepare bosqichidan kelgan merchant_prepare_id
+    clickInvoiceId: { type: String, default: '' }, // Click Invoice API — ilovaga yuborilgan invoice ID
 
     // Payme transaction ma'lumotlari
     paymeTransId: { type: String, default: '' },      // Payme transaction ID
@@ -99,6 +100,7 @@ const orderSchema = new mongoose.Schema({
     dispatchedAt: Date,
     deliveredAt: Date,
     notes: { type: String, default: '' },
+    notifyCount: { type: Number, default: 0 }, // operatorga yuborilgan eslatma soni
 }, {
     timestamps: true,
 });

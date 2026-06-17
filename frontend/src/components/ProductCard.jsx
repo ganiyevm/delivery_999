@@ -1,9 +1,10 @@
-import React from 'react';
 import DrugImage from './DrugImages';
 import { useCart } from '../context/CartContext';
+import { useT } from '../i18n';
 
 export default function ProductCard({ product, onClick, searchMode }) {
     const { addToCart } = useCart();
+    const { t } = useT();
 
     const handleAdd = (e) => {
         e.stopPropagation();
@@ -36,7 +37,7 @@ export default function ProductCard({ product, onClick, searchMode }) {
                     ) : null}
                     <div className="search-result-bottom">
                         <span className="product-card-price">
-                            {product.price ? `${product.price.toLocaleString()} сўм` : '—'}
+                            {product.price ? `${product.price.toLocaleString()} ${t('currency')}` : '—'}
                         </span>
                         {canBuy && (
                             <button className="add-to-cart-btn" onClick={handleAdd}>+</button>
@@ -64,7 +65,7 @@ export default function ProductCard({ product, onClick, searchMode }) {
                 </div>
                 <div className="product-card-bottom">
                     <span className="product-card-price">
-                        {product.price ? `${product.price.toLocaleString()} сўм` : '—'}
+                        {product.price ? `${product.price.toLocaleString()} ${t('currency')}` : '—'}
                     </span>
                     {canBuy && (
                         <button className="add-to-cart-btn" onClick={handleAdd}>+</button>

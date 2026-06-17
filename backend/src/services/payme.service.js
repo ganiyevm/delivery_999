@@ -8,21 +8,28 @@ const TRANSACTION_TIMEOUT = 12 * 60 * 60 * 1000;
 
 class PaymeService {
     // ─── Auth tekshirish (Basic Auth) ───
-    static checkAuth(req) {
+    // expectedKey berilsa — o'sha filialning kaliti bilan solishtiriladi,
+    // aks holda .env dagi umumiy kalit (zaxira / legacy endpoint).
+    static checkAuth(req, expectedKey) {
         const authHeader = req.headers.authorization || '';
         if (!authHeader.startsWith('Basic ')) return false;
         const encoded = authHeader.replace('Basic ', '');
         const decoded = Buffer.from(encoded, 'base64').toString();
         const [, key] = decoded.split(':');
-        return key === process.env.PAYME_SECRET_KEY;
+        return key === (expectedKey || process.env.PAYME_SECRET_KEY);
     }
 
     // ─── JSON-RPC handler ───
-    static async handleRequest(req) {
+    // branch — filialga xos endpoint (/payme/:branchId) chaqirilganda beriladi.
+    // Berilsa: auth shu filial kaliti bilan, buyurtmalar shu filial bilan cheklanadi.
+    static async handleRequest(req, branch = null) {
         const { method, params, id } = req.body;
-        console.log(`[PAYME] method=${method} | params=${JSON.stringify(params)}`);
+        console.log(`[PAYME] method=${method} | branch=${branch?.number ?? 'env'} | params=${JSON.stringify(params)}`);
 
-        if (!PaymeService.checkAuth(req)) {
+        const expectedKey = branch ? branch.paymeKey : process.env.PAYME_SECRET_KEY;
+        const branchId = branch ? branch._id : null;
+
+        if (!PaymeService.checkAuth(req, expectedKey)) {
             console.error('[PAYME] AUTH FAILED');
             return {
                 error: { code: -32504, message: { uz: 'Avtorizatsiya xatosi' } },
@@ -33,17 +40,17 @@ class PaymeService {
         try {
             switch (method) {
                 case 'CheckPerformTransaction':
-                    return await PaymeService.checkPerform(params, id);
+                    return await PaymeService.checkPerform(params, id, branchId);
                 case 'CreateTransaction':
-                    return await PaymeService.createTransaction(params, id);
+                    return await PaymeService.createTransaction(params, id, branchId);
                 case 'PerformTransaction':
-                    return await PaymeService.performTransaction(params, id);
+                    return await PaymeService.performTransaction(params, id, branchId);
                 case 'CancelTransaction':
-                    return await PaymeService.cancelTransaction(params, id);
+                    return await PaymeService.cancelTransaction(params, id, branchId);
                 case 'CheckTransaction':
-                    return await PaymeService.checkTransaction(params, id);
+                    return await PaymeService.checkTransaction(params, id, branchId);
                 case 'GetStatement':
-                    return await PaymeService.getStatement(params, id);
+                    return await PaymeService.getStatement(params, id, branchId);
                 default:
                     return { error: { code: -32601, message: 'Method not found' }, id };
             }
@@ -54,9 +61,12 @@ class PaymeService {
     }
 
     // ─── CheckPerformTransaction ───
-    static async checkPerform(params, id) {
+    static async checkPerform(params, id, branchId = null) {
         const orderId = params.account?.order_id;
-        const order = await Order.findOne({ orderNumber: orderId });
+        const order = await Order.findOne({
+            orderNumber: orderId,
+            ...(branchId ? { branch: branchId } : {}),
+        });
 
         if (!order) {
             return {
@@ -91,9 +101,12 @@ class PaymeService {
     }
 
     // ─── CreateTransaction ───
-    static async createTransaction(params, id) {
+    static async createTransaction(params, id, branchId = null) {
         const orderId = params.account?.order_id;
-        const order = await Order.findOne({ orderNumber: orderId });
+        const order = await Order.findOne({
+            orderNumber: orderId,
+            ...(branchId ? { branch: branchId } : {}),
+        });
 
         if (!order) {
             return {
@@ -199,8 +212,11 @@ class PaymeService {
     }
 
     // ─── PerformTransaction ───
-    static async performTransaction(params, id) {
-        const order = await Order.findOne({ paymeTransId: params.id });
+    static async performTransaction(params, id, branchId = null) {
+        const order = await Order.findOne({
+            paymeTransId: params.id,
+            ...(branchId ? { branch: branchId } : {}),
+        });
 
         if (!order) {
             return {
@@ -247,12 +263,25 @@ class PaymeService {
         order.paymeState = 2;
         order.paymePerformTime = performTime;
         order.paymentStatus = 'paid';
-        order.status = 'pending_operator';
-        order.statusHistory.push({
-            status: 'pending_operator',
-            changedBy: 'system',
-            note: "Payme orqali to'lov tasdiqlandi",
-        });
+
+        // Operator allaqachon tasdiqlagan (awaiting_payment) → confirmed
+        const alreadyApproved = order.status === 'awaiting_payment';
+        if (alreadyApproved) {
+            order.status = 'confirmed';
+            order.confirmedAt = new Date();
+            order.statusHistory.push({
+                status: 'confirmed',
+                changedBy: 'system',
+                note: "Payme orqali to'lov tasdiqlandi",
+            });
+        } else {
+            order.status = 'pending_operator';
+            order.statusHistory.push({
+                status: 'pending_operator',
+                changedBy: 'system',
+                note: "Payme orqali to'lov tasdiqlandi",
+            });
+        }
         await order.save();
 
         // Bonus ishlatish
@@ -262,8 +291,13 @@ class PaymeService {
 
         // Operator va foydalanuvchiga xabar
         const branch = await Branch.findById(order.branch);
-        await telegramService.notifyOperator(order, branch);
-        await telegramService.notifyUser(order.telegramId, 'pending_operator', order);
+        if (alreadyApproved) {
+            await telegramService.notifyUser(order.telegramId, 'confirmed', order);
+            await telegramService.notifyOperator(order, branch);
+        } else {
+            await telegramService.notifyOperator(order, branch);
+            await telegramService.notifyUser(order.telegramId, 'pending_operator', order);
+        }
 
         console.log('[PAYME] PerformTransaction OK:', order.orderNumber);
 
@@ -278,8 +312,11 @@ class PaymeService {
     }
 
     // ─── CancelTransaction ───
-    static async cancelTransaction(params, id) {
-        const order = await Order.findOne({ paymeTransId: params.id });
+    static async cancelTransaction(params, id, branchId = null) {
+        const order = await Order.findOne({
+            paymeTransId: params.id,
+            ...(branchId ? { branch: branchId } : {}),
+        });
 
         if (!order) {
             return {
@@ -355,8 +392,11 @@ class PaymeService {
     }
 
     // ─── CheckTransaction ───
-    static async checkTransaction(params, id) {
-        const order = await Order.findOne({ paymeTransId: params.id });
+    static async checkTransaction(params, id, branchId = null) {
+        const order = await Order.findOne({
+            paymeTransId: params.id,
+            ...(branchId ? { branch: branchId } : {}),
+        });
 
         if (!order) {
             return {
@@ -379,7 +419,7 @@ class PaymeService {
     }
 
     // ─── GetStatement ───
-    static async getStatement(params, id) {
+    static async getStatement(params, id, branchId = null) {
         const from = params.from;
         const to = params.to;
 
@@ -387,6 +427,7 @@ class PaymeService {
             paymentMethod: 'payme',
             paymeCreateTime: { $gte: from, $lte: to },
             paymeTransId: { $exists: true, $ne: '' },
+            ...(branchId ? { branch: branchId } : {}),
         }).lean();
 
         const transactions = orders.map(o => ({

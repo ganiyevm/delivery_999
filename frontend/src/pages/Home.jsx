@@ -137,7 +137,7 @@ export default function Home({ onNavigate, onProduct, onScanner }) {
                 <div className="delivery-info-grid">
                     <div className="delivery-info-item">
                         <div className="icon">💰</div>
-                        <div className="text">50 000 сўм</div>
+                        <div className="text">50 000 {t('currency')}</div>
                         <div className="sub">{t('minOrder')}</div>
                     </div>
                     <div className="delivery-info-item">

@@ -3,6 +3,7 @@ const path = require('path');
 const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
+const compression = require('compression');
 const rateLimit = require('express-rate-limit');
 const connectDB = require('./src/config/db');
 const errorHandler = require('./src/middleware/errorHandler');
@@ -25,6 +26,9 @@ app.use((req, res, next) => {
     next();
 });
 
+// Gzip — JSON, JS, CSS larni siqadi (~60–70% kichikroq)
+app.use(compression({ threshold: 1024 }));
+
 app.use(cors({
     origin: true,  // barcha originlarga ruxsat
     credentials: true,
@@ -46,7 +50,12 @@ app.use(express.urlencoded({ extended: true }));
 // ─── Request logger (Click validation uchun) ───
 app.use((req, res, next) => {
     if (req.path.includes('click') || req.path.includes('payme')) {
-        console.log(`[REQ] ${req.method} ${req.path} | IP: ${req.ip} | Body: ${JSON.stringify(req.body)}`);
+        // Redact potentially sensitive payment fields before logging
+        const safeBody = { ...req.body };
+        if (safeBody.sign_string) safeBody.sign_string = '***';
+        if (safeBody.secret_key) safeBody.secret_key = '***';
+        if (safeBody.password) safeBody.password = '***';
+        console.log(`[REQ] ${req.method} ${req.path} | IP: ${req.ip} | Body: ${JSON.stringify(safeBody)}`);
     }
     next();
 });
@@ -63,6 +72,7 @@ app.use('/api/sync', require('./src/routes/sync'));
 app.use('/api/analytics', require('./src/routes/analytics'));
 app.use('/api/admin', require('./src/routes/admin'));
 app.use('/api/delivery', require('./src/routes/delivery'));
+app.use('/api/geo', require('./src/routes/geo'));
 app.use('/api', require('./src/routes/verify'));
 
 // ─── Telegram Bot Webhook (bot port 3001 ga proxy) ───
@@ -142,11 +152,19 @@ const start = async () => {
     // Cron job — kunlik analytics
     require('./src/jobs/dailyAnalytics');
 
+    // Pending orders reminder — har 2 daqiqada operator eslatmasi
+    require('./src/jobs/pendingOrdersReminder');
+
     app.listen(PORT, () => {
         console.log(`🚀 Apteka999 API ishga tushdi: http://localhost:${PORT}`);
     });
 };
 
-start().catch(console.error);
+// Test muhitida listen qilmaymiz — supertest o'zi boshqaradi
+if (require.main === module) {
+    start().catch(console.error);
+} else {
+    connectDB().catch(console.error);
+}
 
 module.exports = app;

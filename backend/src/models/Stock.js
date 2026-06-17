@@ -22,6 +22,14 @@ const stockSchema = new mongoose.Schema({
         min: 0,
     },
     expiryDate: { type: Date, default: null }, // Eng yaqin tugaydigan partiya sanasi
+    // Partiyalar — bir dori har xil seriya/narx/muddatда kelishi mumkin (mijozга hammasi ko'rinadi)
+    batches: [{
+        _id: false,
+        seria: { type: String, default: '' },
+        price: { type: Number, default: 0 },
+        qty: { type: Number, default: 0 },
+        expiryDate: { type: Date, default: null },
+    }],
     updatedAt: { type: Date, default: Date.now },
 });
 

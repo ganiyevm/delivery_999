@@ -107,6 +107,37 @@ ${payLine}
         return this.sendMessage(branch.operatorChatId, text, { reply_markup: keyboard });
     }
 
+    // Operatorga eslatma — buyurtma hali kutmoqda
+    async remindOperator(order, branch, reminderNum) {
+        if (!branch?.operatorChatId) return;
+
+        const waited = Math.round((Date.now() - new Date(order.createdAt)) / 60000);
+        const bells = '🔔'.repeat(Math.min(reminderNum + 1, 5));
+
+        const itemsList = order.items.map(i =>
+            `├ ${i.productName} ×${i.qty} — ${i.price.toLocaleString()} so'm`
+        ).join('\n');
+
+        const text =
+`${bells} <b>JAVOB KUTILMOQDA — #${order.orderNumber}</b> ${bells}
+⏱ ${waited} daqiqadan beri kutmoqda!
+
+👤 ${order.customerName}
+📞 ${order.phone}
+💊 ${itemsList}
+└─────────────────────────
+💵 JAMI: <b>${order.total.toLocaleString()} so'm</b>`;
+
+        const keyboard = {
+            inline_keyboard: [[
+                { text: '✅ Tasdiqlash', callback_data: `confirm_${order._id}` },
+                { text: '❌ Rad etish', callback_data: `reject_${order._id}` },
+            ]],
+        };
+
+        return this.sendMessage(branch.operatorChatId, text, { reply_markup: keyboard });
+    }
+
     // Mijozga bildirishnoma — foydalanuvchi tiliga qarab
     async notifyUser(telegramId, status, order) {
         // Foydalanuvchi tilini DB dan olish

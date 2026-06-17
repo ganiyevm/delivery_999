@@ -6,7 +6,7 @@ import { useT } from '../../i18n';
 export default function Settings({ onBack }) {
     const { user, updateUser } = useAuth();
     const [darkMode, setDarkMode] = useState(document.documentElement.getAttribute('data-theme') === 'dark');
-    const [lang, setLang] = useState(user?.language || 'uz');
+    const [lang, setLang] = useState(user?.language || localStorage.getItem('userLang') || 'uz');
 
     const toggleDark = () => {
         const next = !darkMode;
@@ -17,6 +17,8 @@ export default function Settings({ onBack }) {
 
     const changeLang = async (l) => {
         setLang(l);
+        // Darhol mahalliy saqlash — qayta yuklashda va anonim rejimda ham tilni eslab qoladi
+        localStorage.setItem('userLang', l);
         try {
             await userAPI.updateProfile({ language: l });
             updateUser({ language: l });

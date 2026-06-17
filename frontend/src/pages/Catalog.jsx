@@ -14,6 +14,7 @@ export default function Catalog({ onProduct, initialCategory }) {
     const [page, setPage] = useState(1);
     const [hasMore, setHasMore] = useState(true);
     const [loading, setLoading] = useState(false);
+    const [error, setError] = useState(false);
     const observerRef = useRef();
     const searchTimeout = useRef();
 
@@ -22,6 +23,7 @@ export default function Catalog({ onProduct, initialCategory }) {
     const fetchProducts = useCallback(async (p = 1, reset = false) => {
         if (loading) return;
         setLoading(true);
+        if (reset) setError(false);
         try {
             const params = { page: p, limit: 20 };
             if (search) params.search = search;
@@ -31,8 +33,10 @@ export default function Catalog({ onProduct, initialCategory }) {
             setProducts(prev => reset ? newProducts : [...prev, ...newProducts]);
             setHasMore(p < (data.pagination?.pages || 1));
             setPage(p);
+            setError(false);
         } catch (err) {
             console.error(err);
+            if (reset) setError(true);
         } finally {
             setLoading(false);
         }
@@ -42,26 +46,22 @@ export default function Catalog({ onProduct, initialCategory }) {
         fetchProducts(1, true);
     }, [search, category]);
 
-    // App qaytib ochilganda yangilash + har 60 sekundda fonda jim yangilash
+    // App qaytib ochilganda / har 60s da qoldiq-narxni jim yangilash.
+    // MUHIM: faqat foydalanuvchi ro'yxat tepasida bo'lsa yangilaymiz — aks holda
+    // pastga skroll qilingan ro'yxat 1-betga "sakrab", skroll yo'qoladi.
     useEffect(() => {
-        const onVisible = () => {
-            if (document.visibilityState === 'visible') {
+        const refreshIfTop = () => {
+            if (document.visibilityState === 'visible' && window.scrollY < 200) {
                 fetchProducts(1, true);
             }
         };
-        document.addEventListener('visibilitychange', onVisible);
-        window.addEventListener('focus', onVisible);
-
-        // Periodik yangilash — faqat app fokuda bo'lsa (batareya saqlash uchun)
-        const intervalId = setInterval(() => {
-            if (document.visibilityState === 'visible') {
-                fetchProducts(1, true);
-            }
-        }, 60_000); // 60 sekund
+        document.addEventListener('visibilitychange', refreshIfTop);
+        window.addEventListener('focus', refreshIfTop);
+        const intervalId = setInterval(refreshIfTop, 60_000);
 
         return () => {
-            document.removeEventListener('visibilitychange', onVisible);
-            window.removeEventListener('focus', onVisible);
+            document.removeEventListener('visibilitychange', refreshIfTop);
+            window.removeEventListener('focus', refreshIfTop);
             clearInterval(intervalId);
         };
     }, [fetchProducts]);
@@ -126,7 +126,16 @@ export default function Catalog({ onProduct, initialCategory }) {
                 </div>
             )}
 
-            {products.length === 0 && !loading ? (
+            {error && products.length === 0 && !loading ? (
+                <div className="empty-state">
+                    <div className="icon">😔</div>
+                    <h3>{t('loadError')}</h3>
+                    <button className="btn-primary" style={{ maxWidth: 200, margin: '16px auto 0' }}
+                        onClick={() => fetchProducts(1, true)}>
+                        🔄 {t('retry')}
+                    </button>
+                </div>
+            ) : products.length === 0 && !loading ? (
                 <div className="empty-state">
                     <div className="icon">🔍</div>
                     <h3>{t('noProducts')}</h3>

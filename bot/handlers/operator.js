@@ -48,11 +48,11 @@ module.exports = (bot) => {
 
             // Klientga mini-app orqali to'lov (havola emas — xavfsiz)
             if (order.telegramId) {
-                const webAppUrl = process.env.WEBAPP_URL || `https://t.me/${process.env.BOT_USERNAME}`;
+                const webAppBase = process.env.WEBAPP_URL || `https://t.me/${process.env.BOT_USERNAME}`;
                 const payKeyboard = {
                     inline_keyboard: [[{
                         text: `💳 To'lash — ${order.total.toLocaleString()} so'm`,
-                        web_app: { url: webAppUrl },
+                        web_app: { url: `${webAppBase}/?pay=${order._id}` },
                     }]],
                 };
                 await telegramService.sendMessage(order.telegramId,

@@ -370,7 +370,7 @@ export default function OrdersList() {
                                                         fetchOrders(filters);
                                                     } catch (err) { alert(err.response?.data?.error || 'Xato'); }
                                                 }}>
-                                                ✅ {t('paid')}
+                                                ↻ Click
                                             </button>
                                         )}
                                     </td>
@@ -425,7 +425,9 @@ export default function OrdersList() {
                             {selected.status === 'pending_operator' && (
                                 <div style={{ margin: '12px 0', padding: '12px', borderRadius: 12, background: 'rgba(39,174,96,0.08)', border: '1px solid rgba(39,174,96,0.25)' }}>
                                     <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 8 }}>
-                                        💊 Dorilarni kassaga urib, tasdiqlang:
+                                        {selected.paymentStatus === 'paid'
+                                            ? '✅ To\'lov qabul qilingan — buyurtmani tasdiqlang:'
+                                            : '💊 Dorilarni kassaga urib, tasdiqlang:'}
                                     </div>
                                     <button className="btn btn-primary" style={{ width: '100%', padding: '10px' }}
                                         onClick={async () => {
@@ -434,7 +436,9 @@ export default function OrdersList() {
                                                 setSelected(null); fetchOrders(filters);
                                             } catch (err) { alert(err.response?.data?.error || 'Xato'); }
                                         }}>
-                                        ✅ Tasdiqlash — klientga to'lov xabari yuboriladi
+                                        {selected.paymentStatus === 'paid'
+                                            ? '✅ Tasdiqlash (to\'langan buyurtma)'
+                                            : '✅ Tasdiqlash — klientga to\'lov xabari yuboriladi'}
                                     </button>
                                 </div>
                             )}
@@ -446,7 +450,7 @@ export default function OrdersList() {
                                                 await api.patch(`/admin/orders/${selected._id}/confirm-payment`);
                                                 setSelected(null); setFilters({ ...filters });
                                             } catch (err) { alert(err.response?.data?.error || 'Xato'); }
-                                        }}>✅ {t('confirm')}</button>
+                                        }}>↻ Click tekshir</button>
                                 )}
                             </p>
                             {selected.deliveryDate && (

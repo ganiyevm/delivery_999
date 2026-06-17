@@ -102,6 +102,17 @@ router.patch('/orders/:id/operator-confirm', adminAuth, async (req, res, next) =
             return res.json({ status: 'confirmed' });
         }
 
+        // Onlayn to'lov allaqachon to'langan (Click/Payme tasdiqlagan) → to'g'ridan-to'g'ri confirmed.
+        // Qoldiq awaiting_payment bosqichida yechilgan — qayta yechilmaydi, qayta to'lov xabari yuborilmaydi.
+        if (order.paymentStatus === 'paid') {
+            order.status = 'confirmed';
+            order.confirmedAt = new Date();
+            order.statusHistory.push({ status: 'confirmed', changedBy: 'operator', changedAt: new Date(), note: "Admin panel — to'langan buyurtma tasdiqlandi" });
+            await order.save();
+            telegramService.notifyUser(order.telegramId, 'confirmed', order).catch(() => {});
+            return res.json({ status: 'confirmed' });
+        }
+
         // Onlayn to'lov → awaiting_payment + klientga to'lov xabari
         order.status = 'awaiting_payment';
         order.statusHistory.push({ status: 'awaiting_payment', changedBy: 'operator', changedAt: new Date(), note: 'Admin panel — bronlandi' });
@@ -110,9 +121,12 @@ router.patch('/orders/:id/operator-confirm', adminAuth, async (req, res, next) =
         }
         await order.save();
 
-        // Klientga mini-app orqali to'lov xabari
+        // Klientga mini-app orqali to'lov xabari.
+        // ?pay=<orderId> — mini-app to'g'ridan-to'g'ri to'lov sahifasida ochiladi
+        // (App.jsx shu query'ni o'qiydi). Aks holda bosh sahifa ochilardi.
         if (order.telegramId) {
-            const webAppUrl = process.env.WEBAPP_URL || `https://t.me/${process.env.BOT_USERNAME}`;
+            const base = process.env.WEBAPP_URL || `https://t.me/${process.env.BOT_USERNAME}`;
+            const webAppUrl = `${base}${base.includes('?') ? '&' : '?'}pay=${order._id}`;
             await telegramService.sendMessage(order.telegramId,
                 `✅ Buyurtmangiz <b>#${order.orderNumber}</b> bronlandi!\n\n` +
                 `💊 Dorilar tayyor — to'lovni amalga oshiring:\n` +
@@ -126,16 +140,26 @@ router.patch('/orders/:id/operator-confirm', adminAuth, async (req, res, next) =
     } catch (error) { next(error); }
 });
 
-// To'lovni qo'lda tasdiqlash (Click webhook localhost ga yetib bormasa)
+// To'lovni tekshirish va faqat provider tasdiqlasa paid qilish
 router.patch('/orders/:id/confirm-payment', async (req, res, next) => {
     try {
         const order = await Order.findById(req.params.id);
         if (!order) return res.status(404).json({ error: 'Buyurtma topilmadi' });
         if (order.paymentStatus === 'paid') return res.json({ message: 'Allaqachon to\'langan' });
+        if (order.paymentMethod !== 'click') {
+            return res.status(400).json({ error: 'Bu endpoint faqat Click to\'lovini tekshiradi' });
+        }
 
         const ClickService = require('../services/click.service');
-        await ClickService.confirmPayment(order);
-        res.json({ message: 'To\'lov tasdiqlandi', order });
+        const result = await ClickService.verifyAndConfirmPayment(order);
+        if (!result.paid) {
+            return res.status(400).json({
+                error: result.message || 'Click to\'lovi hali tasdiqlanmagan',
+                reason: result.reason,
+            });
+        }
+
+        res.json({ message: 'To\'lov tasdiqlandi', source: result.source });
     } catch (error) { next(error); }
 });
 

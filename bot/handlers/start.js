@@ -17,7 +17,12 @@ async function getUserLang(ctx) {
 
 module.exports = (bot) => {
     bot.command('start', async (ctx) => {
-        const webAppUrl = process.env.WEBAPP_URL || 'https://your-miniapp.com';
+        const baseWebAppUrl = (process.env.WEBAPP_URL || 'https://your-miniapp.com').replace(/\/$/, '');
+        const payload = String(ctx.match || '').trim();
+        const payMatch = /^pay_([a-f\d]{24})(?:_(.+))?$/i.exec(payload);
+        const webAppUrl = payMatch
+            ? `${baseWebAppUrl}/?pay=${encodeURIComponent(payMatch[1])}${payMatch[2] ? `&id=${encodeURIComponent(payMatch[2])}` : ''}`
+            : baseWebAppUrl;
         const langCode  = await getUserLang(ctx);
         const loc       = getLang(langCode);
 
@@ -29,7 +34,10 @@ module.exports = (bot) => {
         const keyboard = new InlineKeyboard().webApp(loc.openApp, webAppUrl);
 
         try {
-            await ctx.reply(loc.welcome(branchCount), { parse_mode: 'HTML', reply_markup: keyboard });
+            const text = payMatch
+                ? "✅ To'lov qabul qilindi. Buyurtmani davom ettirish uchun ilovani oching."
+                : loc.welcome(branchCount);
+            await ctx.reply(text, { parse_mode: 'HTML', reply_markup: keyboard });
         } catch (err) {
             if (err.error_code === 403) {
                 console.log(`⚠️ Foydalanuvchi botni bloklagan: ${ctx.from?.id}`);
@@ -72,6 +80,44 @@ module.exports = (bot) => {
 
         await ctx.reply(
             loc.stats(dateStr, orders.length, delivered.length, cancelled.length, revenue, newUsers, topDrug),
+            { parse_mode: 'HTML' }
+        );
+    });
+
+    // /register — operator o'zini fililiga biriktiradi
+    bot.command('register', async (ctx) => {
+        const userId = ctx.from?.id;
+        if (!userId) return ctx.reply('❌ Telegram ID aniqlanmadi.');
+
+        // operatorIds ichida bu foydalanuvchi bormi?
+        const branch = await Branch.findOne({ operatorIds: userId }).lean();
+        if (!branch) {
+            return ctx.reply(
+                '❌ Siz hech qaysi filialga operator sifatida qo\'shilmagansiz.\n\n' +
+                'Admin paneldan filial → Operator IDlar ga Telegram ID ingizni qo\'shtiring:\n' +
+                `<code>${userId}</code>`,
+                { parse_mode: 'HTML' }
+            );
+        }
+
+        // operatorChatId ni yangilash
+        await Branch.findByIdAndUpdate(branch._id, { operatorChatId: ctx.chat.id });
+
+        await ctx.reply(
+            `✅ Muvaffaqiyatli ro'yxatdan o'tdingiz!\n\n` +
+            `🏪 Filial: <b>${branch.name}</b>\n` +
+            `📬 Chat ID: <code>${ctx.chat.id}</code>\n\n` +
+            `Endi yangi zakazlar shu chatga keladi.`,
+            { parse_mode: 'HTML' }
+        );
+        console.log(`[operator] Register: userId=${userId} → branch #${branch.number} (${branch.name}), chatId=${ctx.chat.id}`);
+    });
+
+    // /my_id — Telegram ID ni ko'rish (admin panel uchun)
+    bot.command('my_id', async (ctx) => {
+        await ctx.reply(
+            `Telegram ID ingiz: <code>${ctx.from?.id}</code>\n` +
+            `Chat ID: <code>${ctx.chat?.id}</code>`,
             { parse_mode: 'HTML' }
         );
     });

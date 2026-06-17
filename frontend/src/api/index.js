@@ -27,8 +27,9 @@ export const ordersAPI = {
 };
 
 export const paymentAPI = {
+    getUrl: (orderId) => api.get(`/payment/url/${orderId}`),
     getStatus: (orderId) => api.get(`/payment/status/${orderId}`),
-    checkClick: (orderId) => api.get(`/payment/click/check/${orderId}`),
+    checkClick: (orderId, params) => api.get(`/payment/click/check/${orderId}`, { params }),
     checkPayme: (orderId) => api.get(`/payment/payme/check/${orderId}`),
 };
 

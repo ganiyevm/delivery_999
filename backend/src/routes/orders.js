@@ -5,6 +5,43 @@ const Stock = require('../models/Stock');
 const Branch = require('../models/Branch');
 const { BUSINESS, STATUS_TRANSITIONS } = require('../config/constants');
 const telegramService = require('../services/telegram.service');
+const ClickService = require('../services/click.service');
+
+function normalizeUzPhone(raw) {
+    let digits = String(raw || '').replace(/\D/g, '');
+    if (digits.length === 9) digits = '998' + digits;
+    if (digits.length === 12 && digits.startsWith('998')) return digits;
+    return '';
+}
+
+function getAppBaseUrl() {
+    return (process.env.WEBAPP_URL || `https://t.me/${process.env.BOT_USERNAME || ''}`).replace(/\/$/, '');
+}
+
+function getBackendBaseUrl() {
+    return (process.env.BACKEND_URL || process.env.WEBAPP_URL || '').replace(/\/$/, '');
+}
+
+function getGatewayReturnUrl(order, target = 'webapp') {
+    const backendBase = getBackendBaseUrl();
+    if (backendBase && !backendBase.startsWith('https://t.me/')) {
+        const params = new URLSearchParams({ target });
+        return `${backendBase}/api/payment/return/${order._id}?${params.toString()}`;
+    }
+    return `${getAppBaseUrl()}?pay=${order._id}`;
+}
+
+function buildClickPaymentUrl(order) {
+    const params = new URLSearchParams({
+        service_id: process.env.CLICK_SERVICE_ID,
+        merchant_id: process.env.CLICK_MERCHANT_ID,
+        amount: String(order.total),
+        transaction_param: order.orderNumber,
+        merchant_trans_id: order.orderNumber,
+        return_url: getGatewayReturnUrl(order),
+    });
+    return `https://my.click.uz/services/pay?${params.toString()}`;
+}
 
 // ─── Yangi buyurtma yaratish ───
 router.post('/', auth, async (req, res, next) => {
@@ -18,6 +55,11 @@ router.post('/', auth, async (req, res, next) => {
 
         if (!items || items.length === 0) {
             return res.status(400).json({ error: 'Savat bo\'sh' });
+        }
+
+        const normalizedPhone = normalizeUzPhone(phone || req.user.phone);
+        if (!normalizedPhone) {
+            return res.status(400).json({ error: 'Telefon raqamini to\'g\'ri kiriting: +998 90 123-45-67' });
         }
 
         // Branch tekshirish
@@ -102,7 +144,7 @@ router.post('/', auth, async (req, res, next) => {
             user: req.user._id,
             telegramId: req.user.telegramId,
             customerName: customerName || `${req.user.firstName} ${req.user.lastName}`.trim(),
-            phone: phone || req.user.phone,
+            phone: normalizedPhone,
             items: orderItems,
             branch: branchId,
             deliveryType,
@@ -158,18 +200,41 @@ router.get('/:id/payment-url', auth, async (req, res, next) => {
         const order = await Order.findOne({ _id: req.params.id, user: req.user._id });
         if (!order) return res.status(404).json({ error: 'Topilmadi' });
         if (order.status !== 'awaiting_payment') return res.status(400).json({ error: 'To\'lov kerak emas' });
+        if (order.paymentStatus === 'paid') return res.status(400).json({ error: 'Allaqachon to\'langan' });
+        if (order.paymentId) return res.status(400).json({ error: 'To\'lov allaqachon boshlangan' });
         if (order.paymentMethod === 'cash') return res.status(400).json({ error: 'Naqd to\'lov' });
 
-        const returnUrl = process.env.WEBAPP_URL || `https://t.me/${process.env.BOT_USERNAME}`;
+        const returnUrl = getGatewayReturnUrl(order);
         let paymentUrl = '';
         if (order.paymentMethod === 'click') {
-            paymentUrl = `https://my.click.uz/services/pay?service_id=${process.env.CLICK_SERVICE_ID}&merchant_id=${process.env.CLICK_MERCHANT_ID}&amount=${order.total}&transaction_param=${order.orderNumber}&merchant_user_id=${process.env.CLICK_MERCHANT_USER_ID}&return_url=${encodeURIComponent(returnUrl)}`;
+            paymentUrl = buildClickPaymentUrl(order);
         } else if (order.paymentMethod === 'payme') {
-            const d = Buffer.from(`m=${process.env.PAYME_MERCHANT_ID};ac.order_id=${order.orderNumber};a=${order.total * 100};l=uz`).toString('base64');
+            // Har filial o'z Payme kassasi: branch.paymeMerchantId, bo'sh bo'lsa .env (zaxira)
+            const branch = await Branch.findById(order.branch).select('paymeMerchantId').lean();
+            const merchantId = branch?.paymeMerchantId || process.env.PAYME_MERCHANT_ID;
+            // Payme: c=<return_url> — to'lovdan keyin shu manzilga qaytaradi
+            const d = Buffer.from(`m=${merchantId};ac.order_id=${order.orderNumber};a=${order.total * 100};l=uz;c=${returnUrl}`).toString('base64');
             paymentUrl = `https://checkout.paycom.uz/${d}`;
         }
 
         res.json({ paymentUrl });
+    } catch (error) { next(error); }
+});
+
+// ─── Click Invoice yuborish (ilovaga push) — faqat awaiting_payment, buyurtma egasi ───
+router.post('/:id/click-invoice', auth, async (req, res, next) => {
+    try {
+        const order = await Order.findOne({ _id: req.params.id, user: req.user._id });
+        if (!order) return res.status(404).json({ error: 'Topilmadi' });
+        if (order.paymentStatus === 'paid') return res.json({ ok: true, alreadyPaid: true });
+        if (order.status !== 'awaiting_payment') return res.status(400).json({ error: 'To\'lov kerak emas' });
+        if (order.paymentMethod !== 'click') return res.status(400).json({ error: 'Click emas' });
+
+        const result = await ClickService.createInvoice(order);
+        if (!result.ok) {
+            return res.status(400).json({ error: result.message, code: result.code });
+        }
+        res.json({ ok: true, invoiceId: result.invoiceId });
     } catch (error) { next(error); }
 });
 

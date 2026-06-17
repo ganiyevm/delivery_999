@@ -1,13 +1,23 @@
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import { authAPI } from '../api/index';
 
 const AuthContext = createContext(null);
+
+function isPaymentReturn() {
+    if (typeof window === 'undefined') return false;
+    const params = new URLSearchParams(window.location.search);
+    const startParam = window.Telegram?.WebApp?.initDataUnsafe?.start_param
+        || params.get('tgWebAppStartParam')
+        || '';
+    return Boolean(params.get('pay') || /^pay_[a-f\d]{24}(?:_.+)?$/i.test(startParam) || localStorage.getItem('pendingPaymentOrderId'));
+}
 
 export function AuthProvider({ children }) {
     const [user, setUser] = useState(null);
     const [token, setToken] = useState(localStorage.getItem('token'));
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
+    const retryTimer = useRef(null);
 
     const doAuth = useCallback(async () => {
         setLoading(true);
@@ -15,7 +25,6 @@ export function AuthProvider({ children }) {
 
         const tg = window.Telegram?.WebApp;
 
-        // Telegram ga darhol "tayyor" signalini yuborish (spinner o'chishi uchun)
         if (tg) {
             tg.ready();
             tg.expand();
@@ -23,23 +32,46 @@ export function AuthProvider({ children }) {
 
         try {
             if (tg?.initData) {
-                // Telegram WebApp rejimi
                 const { data } = await authAPI.telegramAuth(tg.initData);
                 setToken(data.token);
                 setUser(data.user);
                 localStorage.setItem('token', data.token);
                 localStorage.setItem('user', JSON.stringify(data.user));
+            } else if (isPaymentReturn()) {
+                // Click/Payme tashqi brauzerdan qaytganda Telegram initData bo'lmaydi.
+                // Payment sahifasi public status endpointlari bilan o'zi tekshiradi.
+                const savedUser = localStorage.getItem('user');
+                if (savedUser) {
+                    try { setUser(JSON.parse(savedUser)); } catch (_) {}
+                }
             } else {
-                // Development mode
                 const { data } = await authAPI.devLogin();
                 setToken(data.token);
                 setUser(data.user);
                 localStorage.setItem('token', data.token);
                 localStorage.setItem('user', JSON.stringify(data.user));
             }
+            // Muvaffaqiyatli — retry timerni bekor qilish
+            if (retryTimer.current) clearTimeout(retryTimer.current);
         } catch (err) {
             console.error('Auth error:', err);
-            setError(err.response?.data?.error || err.message || 'Autentifikatsiya xatosi');
+            const errMsg = err.response?.data?.error || err.message || 'Autentifikatsiya xatosi';
+            setError(errMsg);
+
+            // Eski token hali localStorage da bo'lishi mumkin — foydalanishga harakat
+            const savedToken = localStorage.getItem('token');
+            if (savedToken) {
+                setToken(savedToken);
+                const savedUser = localStorage.getItem('user');
+                if (savedUser) {
+                    try { setUser(JSON.parse(savedUser)); } catch (_) {}
+                }
+            }
+
+            // 5 soniyadan keyin avtomatik qayta urinish (tarmoq muammosi bo'lishi mumkin)
+            retryTimer.current = setTimeout(() => {
+                doAuth();
+            }, 5000);
         } finally {
             setLoading(false);
         }
@@ -47,6 +79,7 @@ export function AuthProvider({ children }) {
 
     useEffect(() => {
         doAuth();
+        return () => { if (retryTimer.current) clearTimeout(retryTimer.current); };
     }, [doAuth]);
 
     const updateUser = (updates) => {

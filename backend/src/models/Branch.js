@@ -18,6 +18,12 @@ const branchSchema = new mongoose.Schema({
         lng: { type: Number, default: 0 },
     },
     isActive: { type: Boolean, default: true },
+    isSynced: { type: Boolean, default: false }, // Agent o'rnatilgan va real vaqt sync bo'layotgan filial
+
+    // ─── Har filial o'z to'lov kassasi (Payme) ───
+    // Bo'sh bo'lsa — backend .env dagi umumiy merchant ishlatiladi (zaxira)
+    paymeMerchantId: { type: String, default: '' }, // Payme cashbox merchant_id (24-hex)
+    paymeKey: { type: String, default: '' },        // Payme cashbox MERCHANT_KEY (webhook auth)
 }, {
     timestamps: true,
 });
