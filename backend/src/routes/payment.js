@@ -46,8 +46,8 @@ function getGatewayReturnUrl(order, target = 'webapp') {
     return getPaymentReturnUrl(order);
 }
 
-async function buildPaymentUrl(order) {
-    const returnUrl = getGatewayReturnUrl(order);
+async function buildPaymentUrl(order, target = 'webapp') {
+    const returnUrl = getGatewayReturnUrl(order, target);
 
     if (order.paymentMethod === 'click') {
         const params = new URLSearchParams({
@@ -137,7 +137,7 @@ router.get('/url/:orderId', async (req, res, next) => {
         if (order.paymentId) return res.status(400).json({ error: 'To\'lov allaqachon boshlangan' });
         if (order.paymentMethod === 'cash') return res.status(400).json({ error: 'Naqd to\'lov' });
 
-        const paymentUrl = await buildPaymentUrl(order);
+        const paymentUrl = await buildPaymentUrl(order, req.query.target === 'telegram' ? 'telegram' : 'webapp');
         res.json({ paymentUrl });
     } catch (error) {
         next(error);

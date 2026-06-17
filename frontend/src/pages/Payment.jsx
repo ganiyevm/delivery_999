@@ -6,6 +6,7 @@ import { useT } from '../i18n';
 const DB_POLL_INTERVAL  = 4000;
 const API_CHECK_INTERVAL = 8000;
 const TIMEOUT_MS = 5 * 60 * 1000;
+const tg = window.Telegram?.WebApp;
 
 export default function Payment({ orderId, onDone }) {
     const { t } = useT();
@@ -22,7 +23,7 @@ export default function Payment({ orderId, onDone }) {
     // Buyurtma allaqachon to'langan/holat boshqa bo'lsa backend 400 qaytaradi — e'tiborsiz.
     useEffect(() => {
         if (!orderId) return;
-        paymentAPI.getUrl(orderId)
+        paymentAPI.getUrl(orderId, { target: tg ? 'telegram' : 'webapp' })
             .then(({ data }) => { if (data?.paymentUrl) setPayUrl(data.paymentUrl); })
             .catch(() => {});
     }, [orderId]);
@@ -32,7 +33,8 @@ export default function Payment({ orderId, onDone }) {
         if (!payUrl) return;
         // Qaytib kelganda Payment sahifasi tiklanishi uchun belgilab qo'yamiz
         localStorage.setItem('pendingPaymentOrderId', orderId);
-        window.location.assign(payUrl);
+        if (tg?.openLink) tg.openLink(payUrl, { try_instant_view: false });
+        else window.location.assign(payUrl);
     };
 
     useEffect(() => {
