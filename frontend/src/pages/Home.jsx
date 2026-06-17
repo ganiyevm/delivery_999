@@ -16,6 +16,25 @@ const CATEGORY_ICONS = [
     { key: 'stomach', icon: '🫀' },
 ];
 
+function HeaderIcon({ name }) {
+    const props = {
+        width: 20,
+        height: 20,
+        viewBox: '0 0 24 24',
+        fill: 'none',
+        stroke: 'currentColor',
+        strokeWidth: 2,
+        strokeLinecap: 'round',
+        strokeLinejoin: 'round',
+        'aria-hidden': true,
+    };
+    const icons = {
+        scan: <><path d="M4 7V5a1 1 0 0 1 1-1h2" /><path d="M17 4h2a1 1 0 0 1 1 1v2" /><path d="M20 17v2a1 1 0 0 1-1 1h-2" /><path d="M7 20H5a1 1 0 0 1-1-1v-2" /><path d="M7 12h10" /></>,
+        cart: <><path d="M5 6h16l-2 9H8L5 3H2" /><circle cx="9" cy="20" r="1" /><circle cx="18" cy="20" r="1" /></>,
+    };
+    return <svg {...props}>{icons[name]}</svg>;
+}
+
 export default function Home({ onNavigate, onProduct, onScanner }) {
     const { user } = useAuth();
     const { count } = useCart();
@@ -61,16 +80,18 @@ export default function Home({ onNavigate, onProduct, onScanner }) {
         <div className="page">
             <header className="header">
                 <div className="header-logo">
-                    <img src="/logo999.jpg" alt="999" style={{ height: 40, width: 40, borderRadius: 10, objectFit: 'cover' }} />
-                    <h1>
-                        {t('appName')}
-                        <span>{t('branchSubtitle').replace('{n}', branchCount)}</span>
-                    </h1>
+                    <img className="header-logo-img" src="/logo999.jpg" alt="999" />
+                    <div>
+                        <div className="header-eyebrow">{t('branchSubtitle').replace('{n}', branchCount)}</div>
+                        <h1>{t('appName')}</h1>
+                    </div>
                 </div>
                 <div className="header-actions">
-                    <button className="header-btn" onClick={onScanner}>📷</button>
+                    <button className="header-btn" onClick={onScanner} aria-label="Scanner">
+                        <HeaderIcon name="scan" />
+                    </button>
                     <button className="header-btn" onClick={() => onNavigate('cart')}>
-                        🛒
+                        <HeaderIcon name="cart" />
                         {count > 0 && <span className="cart-badge">{count}</span>}
                     </button>
                 </div>
@@ -82,23 +103,29 @@ export default function Home({ onNavigate, onProduct, onScanner }) {
             </div>
 
             <div className="promo-banner fade-up">
-                <h2>{t('promoTitle')}</h2>
-                <p>{t('promoText')}</p>
+                <div className="promo-copy">
+                    <span className="promo-kicker">999 dorixonalar</span>
+                    <h2>{t('promoTitle')}</h2>
+                    <p>{t('promoText')}</p>
+                </div>
+                <div className="promo-mark">
+                    <img src="/logo999.jpg" alt="" />
+                </div>
             </div>
 
             <div className="stats-grid fade-up">
                 <div className="stat-card">
-                    <div className="icon">🏥</div>
+                    <div className="icon">№</div>
                     <div className="value">{branchCount}</div>
                     <div className="label">{t('branchStat')}</div>
                 </div>
                 <div className="stat-card">
-                    <div className="icon">💊</div>
+                    <div className="icon">Rx</div>
                     <div className="value">4000+</div>
                     <div className="label">{t('medicineStat')}</div>
                 </div>
                 <div className="stat-card">
-                    <div className="icon">🚚</div>
+                    <div className="icon">24</div>
                     <div className="value">1-2</div>
                     <div className="label">{t('hourStat')}</div>
                 </div>
