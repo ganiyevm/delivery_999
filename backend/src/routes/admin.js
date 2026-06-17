@@ -80,7 +80,7 @@ router.get('/orders', async (req, res, next) => {
     } catch (error) { next(error); }
 });
 
-// Operator admin paneldan buyurtmani tasdiqlash → klientga to'lov xabari
+// Operator admin paneldan buyurtmani tasdiqlash → Mini App polling orqali to'lovga o'tadi
 router.patch('/orders/:id/operator-confirm', adminAuth, async (req, res, next) => {
     try {
         const order = await Order.findById(req.params.id).populate('branch');
@@ -113,28 +113,13 @@ router.patch('/orders/:id/operator-confirm', adminAuth, async (req, res, next) =
             return res.json({ status: 'confirmed' });
         }
 
-        // Onlayn to'lov → awaiting_payment + klientga to'lov xabari
+        // Onlayn to'lov → awaiting_payment. Mijoz Mini App ichida polling orqali to'lovga o'tadi.
         order.status = 'awaiting_payment';
         order.statusHistory.push({ status: 'awaiting_payment', changedBy: 'operator', changedAt: new Date(), note: 'Admin panel — bronlandi' });
         for (const item of order.items) {
             await Stock.findOneAndUpdate({ product: item.product, branch: order.branch._id }, { $inc: { qty: -item.qty } });
         }
         await order.save();
-
-        // Klientga mini-app orqali to'lov xabari.
-        // ?pay=<orderId> — mini-app to'g'ridan-to'g'ri to'lov sahifasida ochiladi
-        // (App.jsx shu query'ni o'qiydi). Aks holda bosh sahifa ochilardi.
-        if (order.telegramId) {
-            const base = process.env.WEBAPP_URL || `https://t.me/${process.env.BOT_USERNAME}`;
-            const webAppUrl = `${base}${base.includes('?') ? '&' : '?'}pay=${order._id}`;
-            await telegramService.sendMessage(order.telegramId,
-                `✅ Buyurtmangiz <b>#${order.orderNumber}</b> bronlandi!\n\n` +
-                `💊 Dorilar tayyor — to'lovni amalga oshiring:\n` +
-                `💵 Jami: <b>${order.total.toLocaleString()} so'm</b>\n\n` +
-                `👇 Ilovani oching va to'lang:`,
-                { reply_markup: { inline_keyboard: [[{ text: `💳 To'lash — ${order.total.toLocaleString()} so'm`, web_app: { url: webAppUrl } }]] } }
-            );
-        }
 
         res.json({ status: 'awaiting_payment' });
     } catch (error) { next(error); }

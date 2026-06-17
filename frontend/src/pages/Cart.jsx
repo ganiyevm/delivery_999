@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
-import { ordersAPI, branchesAPI } from '../api/index';
+import { ordersAPI, branchesAPI, paymentAPI } from '../api/index';
 import api from '../api/axios';
 import DrugImage from '../components/DrugImages';
 import { useCart } from '../context/CartContext';
@@ -159,16 +159,47 @@ export default function Cart({ onNavigate, onPayment }) {
         ? branches
         : branches.filter(b => availableBranchIds.includes(b._id));
 
+    useEffect(() => {
+        if (!submitted?.id || submitted.paymentMethod === 'cash') return;
+
+        let stopped = false;
+        const checkOrder = async () => {
+            try {
+                const { data } = await paymentAPI.getStatus(submitted.id);
+                if (stopped) return;
+                if (data.status === 'awaiting_payment' && data.paymentStatus !== 'paid') {
+                    onPayment?.(submitted.id);
+                } else if (data.status === 'rejected' || data.status === 'cancelled') {
+                    setSubmitted(prev => prev ? { ...prev, status: data.status } : prev);
+                } else if (data.paymentStatus === 'paid' || data.status === 'confirmed') {
+                    onPayment?.(submitted.id);
+                }
+            } catch { /* ignore while operator is reviewing */ }
+        };
+
+        checkOrder();
+        const timer = setInterval(checkOrder, 3000);
+        return () => {
+            stopped = true;
+            clearInterval(timer);
+        };
+    }, [submitted?.id, submitted?.paymentMethod, onPayment]);
+
     if (submitted) {
+        const rejected = submitted.status === 'rejected' || submitted.status === 'cancelled';
         return (
             <div className="page">
                 <div className="empty-state" style={{ paddingTop: 80 }}>
-                    <div className="icon">✅</div>
-                    <h3>Buyurtma qabul qilindi!</h3>
+                    <div className="icon">{rejected ? '😔' : '✅'}</div>
+                    <h3>{rejected ? 'Buyurtma rad etildi' : 'Buyurtma qabul qilindi!'}</h3>
                     <p style={{ fontSize: 14, color: 'var(--text-secondary)', lineHeight: 1.6 }}>
-                        <b>#{submitted.orderNumber}</b> — apteka xodimi dorilarni tekshiradi.<br />
-                        Tayyor bo'lgach botdan to'lov havolasi yuboriladi.
+                        <b>#{submitted.orderNumber}</b> — {rejected
+                            ? 'dori hozir mavjud emas.'
+                            : submitted.paymentMethod === 'cash'
+                                ? 'apteka xodimi dorilarni tekshiradi.'
+                                : "apteka xodimi dorilarni tekshiradi. Tayyor bo'lgach to'lov shu ilovada ochiladi."}
                     </p>
+                    {!rejected && submitted.paymentMethod !== 'cash' && <div className="loading-spinner" style={{ margin: '20px auto 0' }} />}
                     <button className="btn-primary" style={{ maxWidth: 220, margin: '20px auto 0' }}
                         onClick={() => onNavigate('home')}>
                         Bosh sahifaga qaytish
@@ -236,7 +267,11 @@ export default function Cart({ onNavigate, onPayment }) {
             });
 
             clearCart();
-            setSubmitted({ orderNumber: data.order.orderNumber });
+            setSubmitted({
+                id: data.order.id,
+                orderNumber: data.order.orderNumber,
+                paymentMethod,
+            });
         } catch (err) {
             showAlert(err.response?.data?.error || t('errorOccurred'));
         } finally {
@@ -481,7 +516,7 @@ export default function Cart({ onNavigate, onPayment }) {
                 </div>
 
                 <div style={{ fontSize: 12, color: 'var(--text-secondary)', textAlign: 'center', marginBottom: 8, lineHeight: 1.5 }}>
-                    📋 Buyurtma berilgach apteka tekshiradi — to'lov havolasi botdan yuboriladi
+                    📋 Buyurtma berilgach apteka tekshiradi — tayyor bo'lsa to'lov shu ilovada ochiladi
                 </div>
                 <button className="btn-primary" onClick={handleSubmit} disabled={submitting || authLoading || !token}>
                     {submitting ? '⏳ Yuborilmoqda...' : `📋 Buyurtma berish • ${grandTotal.toLocaleString()} ${t('currency')}`}

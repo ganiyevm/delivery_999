@@ -6,7 +6,7 @@ const BonusService = require('../../backend/src/services/bonus.service');
 const telegramService = require('../../backend/src/services/telegram.service');
 
 module.exports = (bot) => {
-    // ═══ TASDIQLASH — dorilar bronlandi, klientga to'lov havolasi yuboriladi ═══
+    // ═══ TASDIQLASH — dorilar bronlandi, mijoz Mini App ichida to'lovga o'tadi ═══
     bot.callbackQuery(/^confirm_(.+)$/, async (ctx) => {
         try {
             const orderId = ctx.match[1];
@@ -35,7 +35,7 @@ module.exports = (bot) => {
                 return ctx.answerCallbackQuery('✅ Tasdiqlandi!');
             }
 
-            // Onlayn to'lov → awaiting_payment + klientga to'lov havolasi
+            // Onlayn to'lov → awaiting_payment. Mijoz Mini App ichida polling orqali to'lovga o'tadi.
             order.status = 'awaiting_payment';
             order.operatorId = ctx.from.id;
             order.statusHistory.push({ status: 'awaiting_payment', changedBy: 'operator', changedAt: new Date(), note: `Bronlandi — ${ctx.from.first_name}` });
@@ -46,31 +46,13 @@ module.exports = (bot) => {
             }
             await order.save();
 
-            // Klientga mini-app orqali to'lov (havola emas — xavfsiz)
-            if (order.telegramId) {
-                const webAppBase = process.env.WEBAPP_URL || `https://t.me/${process.env.BOT_USERNAME}`;
-                const payKeyboard = {
-                    inline_keyboard: [[{
-                        text: `💳 To'lash — ${order.total.toLocaleString()} so'm`,
-                        web_app: { url: `${webAppBase}/?pay=${order._id}` },
-                    }]],
-                };
-                await telegramService.sendMessage(order.telegramId,
-                    `✅ Buyurtmangiz <b>#${order.orderNumber}</b> bronlandi!\n\n` +
-                    `💊 Dorilar tayyor, endi to'lov qiling:\n` +
-                    `💵 Jami: <b>${order.total.toLocaleString()} so'm</b>\n\n` +
-                    `👇 Quyidagi tugmani bosing:`,
-                    { reply_markup: payKeyboard }
-                );
-            }
-
             // Operator xabarini yangilash
             await ctx.editMessageText(
                 `⏳ <b>To'lov kutilmoqda</b> — ${order.customerName}\n📦 #${order.orderNumber}\n💵 ${order.total.toLocaleString()} so'm\n👤 ${ctx.from.first_name} bronladi\n🕐 ${new Date().toLocaleTimeString('uz-UZ', { hour: '2-digit', minute: '2-digit' })}`,
                 { parse_mode: 'HTML' }
             );
 
-            await ctx.answerCallbackQuery('✅ Klientga to\'lov havolasi yuborildi!');
+            await ctx.answerCallbackQuery('✅ To\'lov Mini App ichida ochiladi!');
         } catch (error) {
             console.error('Confirm error:', error);
             await ctx.answerCallbackQuery('Xato yuz berdi');

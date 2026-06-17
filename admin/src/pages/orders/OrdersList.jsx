@@ -438,7 +438,7 @@ export default function OrdersList() {
                                         }}>
                                         {selected.paymentStatus === 'paid'
                                             ? '✅ Tasdiqlash (to\'langan buyurtma)'
-                                            : '✅ Tasdiqlash — klientga to\'lov xabari yuboriladi'}
+                                            : '✅ Tasdiqlash — to\'lov Mini App ichida ochiladi'}
                                     </button>
                                 </div>
                             )}
