@@ -4,12 +4,17 @@
  * KARUSEL bo'lib, har birида aniq ALT matni bor — rasm ALT bo'yicha tanlanadi
  * (pozitsiya emas), shuning uchun "boshqa dori" rasmи tushmaydi.
  *
- * Ishlatish: MONGODB_URI=... [SAMPLE=1] [LIMIT=20] [DELAY=400] node scripts/fetch-images-apteka.js
+ * Ishlatish:
+ *   MONGODB_URI=... DRY_RUN=1 SAMPLE=1 LIMIT=20 node scripts/fetch-images-apteka.js
+ *   MONGODB_URI=... LIMIT=200 DELAY=400 node scripts/fetch-images-apteka.js
  */
 const { MongoClient } = require('mongodb');
 
 const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124 Safari/537.36';
 const DELAY_MS = parseInt(process.env.DELAY || '400', 10);
+const DRY_RUN = process.env.DRY_RUN === '1';
+const PRODUCT_REGEX = process.env.PRODUCT_REGEX || '';
+const START_AFTER = process.env.START_AFTER || '';
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 
 const TR = { а:'a',б:'b',в:'v',г:'g',д:'d',е:'e',ё:'yo',ж:'j',з:'z',и:'i',й:'y',к:'k',л:'l',м:'m',н:'n',о:'o',п:'p',р:'r',с:'s',т:'t',у:'u',ф:'f',х:'x',ц:'ts',ч:'ch',ш:'sh',щ:'sch',ъ:'',ы:'i',ь:'',э:'e',ю:'yu',я:'ya' };
@@ -45,6 +50,15 @@ function keyAlnum(name) {
     return alnum(translit(tokens[0] || ''));
 }
 
+function latinBrandTokens(name) {
+    return cleanQuery(name)
+        .split(/\s+/)
+        .map(token => token.replace(/[^A-Za-z0-9-]/g, '').toLowerCase())
+        .filter(token => token.length >= 3)
+        .filter(token => !/^(for|men|iii?|iv|vi|u-?100|no|ml|mg|n\d*)$/i.test(token))
+        .filter(token => !/^\d+$/.test(token));
+}
+
 // ─── Kirill (ALT bilan solishtirish uchun) ─────────────────────────────────
 function nameWordRu(name) {
     const toks = name.replace(/^\*+/, '').split(/[\s,./()\\]+/);
@@ -74,6 +88,7 @@ function countRu(name) { const m = name.match(/[№N]\s*(\d+)/i); return m ? m[1
 function scoreAlt(alt, w) {
     const a = normRu(alt);
     if (!w.word || !a.includes(w.word)) return -1;
+    if (w.latinBrands.length && !w.latinBrands.every(token => alnum(alt.toLowerCase()).includes(alnum(token)))) return -1;
     if (w.doses.length && !w.doses.some(d => a.includes(d))) return -1;
     if (w.form && !a.includes(w.form)) return -1;
     let s = 2;
@@ -127,6 +142,8 @@ async function main() {
     const P = client.db('apteka999').collection('products');
 
     const filter = { $or: [{ imageUrl: '' }, { imageUrl: null }, { imageUrl: { $exists: false } }] };
+    if (PRODUCT_REGEX) filter.name = new RegExp(PRODUCT_REGEX, 'i');
+    if (START_AFTER && !PRODUCT_REGEX) filter.name = { $gt: START_AFTER };
     let items;
     if (process.env.SAMPLE === '1') {
         items = await P.aggregate([{ $match: filter }, { $sample: { size: limit > 0 ? limit : 60 } }, { $project: { name: 1 } }]).toArray();
@@ -140,14 +157,14 @@ async function main() {
         console.log(`Tartib: kirill ${cyr.length} + lotin ${lat.length}`);
     }
 
-    console.log(`Ishlov: ${items.length} ta\n`);
+    console.log(`Ishlov: ${items.length} ta | DRY_RUN=${DRY_RUN ? '1' : '0'}\n`);
     let ok = 0, miss = 0, n = 0;
     for (const prod of items) {
         n++;
         const label = prod.name.slice(0, 44).padEnd(44);
         try {
             const q = searchTerm(prod.name);
-            const w = { word: nameWordRu(prod.name), doses: dosesRu(prod.name), form: formRu(prod.name), count: countRu(prod.name) };
+            const w = { word: nameWordRu(prod.name), latinBrands: latinBrandTokens(prod.name), doses: dosesRu(prod.name), form: formRu(prod.name), count: countRu(prod.name) };
             const results = await searchResults(q);
             if (!results.length) { miss++; console.log(`✗ ${label} | natija yo'q`); await sleep(DELAY_MS); continue; }
 
@@ -162,15 +179,15 @@ async function main() {
             const url = 'https://main.apteka.uz/' + best.img.replace(/^\/+/, '');
             if (!validImg(url) || !(await isImage(url))) { miss++; console.log(`✗ ${label} | rasm ochilmadi`); await sleep(DELAY_MS); continue; }
 
-            await P.updateOne({ _id: prod._id }, { $set: { imageUrl: url } });
+            if (!DRY_RUN) await P.updateOne({ _id: prod._id }, { $set: { imageUrl: url } });
             ok++;
-            if (n % 10 === 0 || ok <= 25) console.log(`✓ ${label} | s=${bestScore} | ${best.name.slice(0, 40)}`);
+            if (n % 10 === 0 || ok <= 25) console.log(`${DRY_RUN ? '✓' : '✅'} ${label} | s=${bestScore} | ${best.name.slice(0, 40)}`);
         } catch (e) {
             miss++; console.log(`✗ ${label} | xato: ${e.message}`);
         }
         await sleep(DELAY_MS);
     }
-    console.log(`\n=== TUGADI ===\nTopildi: ${ok}\nMos kelmadi: ${miss}\nJami: ${items.length}`);
+    console.log(`\n=== TUGADI ===\n${DRY_RUN ? 'Yozilardi' : 'Topildi'}: ${ok}\nMos kelmadi: ${miss}\nJami: ${items.length}`);
     await client.close();
 }
 
