@@ -67,7 +67,7 @@ export default function ProductDetail({ productId, onBack }) {
     };
 
     const handleAddToCart = () => {
-        if (!product || !bestStock) return;
+        if (!product || !bestStock || product.requiresRx) return;
         addToCart({ ...product, price: bestStock.price }, bestStock.branch?._id, qty);
     };
 
@@ -103,7 +103,7 @@ export default function ProductDetail({ productId, onBack }) {
 
             <div className="product-detail-info">
                 <div className="product-detail-badges">
-                    {product.requiresRx && <span className="badge badge-rx">Rx</span>}
+                    {product.requiresRx && <span className="badge badge-rx">Rx {t('requiresPrescription')}</span>}
                     {product.totalQty > 0 ? (
                         <span className="badge badge-instock">✓ {t('inStock')}</span>
                     ) : (
@@ -203,8 +203,10 @@ export default function ProductDetail({ productId, onBack }) {
                         <button className="qty-btn" onClick={() => setQty(qty + 1)}>+</button>
                     </div>
                 </div>
-                <button className="btn-primary" onClick={handleAddToCart} disabled={product.totalQty === 0}>
-                    {product.totalQty > 0
+                <button className="btn-primary" onClick={handleAddToCart} disabled={product.totalQty === 0 || product.requiresRx}>
+                    {product.requiresRx
+                        ? t('requiresPrescription')
+                        : product.totalQty > 0
                         ? `${t('addToCart')} • ${calcTotalPrice(bestStock, qty).toLocaleString()} ${t('currency')}`
                         : t('outOfStock')}
                 </button>

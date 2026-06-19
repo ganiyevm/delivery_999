@@ -5,13 +5,15 @@ import { useT } from '../i18n';
 export default function ProductCard({ product, onClick, searchMode }) {
     const { addToCart } = useCart();
     const { t } = useT();
+    const requiresRx = Boolean(product.requiresRx);
 
     const handleAdd = (e) => {
         e.stopPropagation();
+        if (requiresRx) return;
         addToCart(product, product.branchId);
     };
 
-    const canBuy = product.inStock !== false && product.price > 0;
+    const canBuy = !requiresRx && product.inStock !== false && product.price > 0;
     const desc = product.description?.uz || product.ingredient || '';
 
     if (searchMode) {
@@ -35,6 +37,7 @@ export default function ProductCard({ product, onClick, searchMode }) {
                     {desc ? (
                         <div className="search-result-desc">{desc}</div>
                     ) : null}
+                    {requiresRx && <span className="rx-chip">{t('requiresPrescription')}</span>}
                     <div className="search-result-bottom">
                         <span className="product-card-price">
                             {product.price ? `${product.price.toLocaleString()} ${t('currency')}` : '—'}
@@ -63,6 +66,7 @@ export default function ProductCard({ product, onClick, searchMode }) {
                 <div className="product-card-manufacturer">
                     {product.manufacturer || ''} {product.country ? `(${product.country})` : ''}
                 </div>
+                {requiresRx && <span className="rx-chip">{t('requiresPrescription')}</span>}
                 <div className="product-card-bottom">
                     <span className="product-card-price">
                         {product.price ? `${product.price.toLocaleString()} ${t('currency')}` : '—'}

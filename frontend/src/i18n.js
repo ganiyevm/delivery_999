@@ -57,6 +57,7 @@ const translations = {
         noProducts: 'Mahsulot topilmadi',
         foundCount: '{n} ta dori topildi',
         tryOtherSearch: "Boshqa so'z bilan qidiring",
+        requiresPrescription: 'Retsept kerak',
 
         // ── Cart ───────────────────────────────────────────────────────────
         cartEmpty: "Savat bo'sh", cartEmptyText: 'Katalogdan dori qo\'shing',
@@ -271,6 +272,7 @@ const translations = {
         noProducts: 'Товары не найдены',
         foundCount: 'Найдено {n} товаров',
         tryOtherSearch: 'Попробуйте другой запрос',
+        requiresPrescription: 'Нужен рецепт',
 
         // ── Cart ───────────────────────────────────────────────────────────
         cartEmpty: 'Корзина пуста', cartEmptyText: 'Добавьте лекарства из каталога',
@@ -483,6 +485,7 @@ const translations = {
         // ── Catalog ────────────────────────────────────────────────────────
         allCategories: 'All', clearSearch: 'Clear',
         noProducts: 'No products found',
+        requiresPrescription: 'Prescription required',
         foundCount: '{n} medicines found',
         tryOtherSearch: 'Try a different search term',
 

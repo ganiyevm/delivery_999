@@ -643,6 +643,21 @@ body {
 .badge-status-awaiting_payment { background: #fff8e1; color: var(--orange); }
 .badge-status-cancelled, .badge-status-rejected { background: #fde8e8; color: var(--red); }
 
+.rx-chip {
+  display: inline-flex;
+  align-items: center;
+  width: fit-content;
+  max-width: 100%;
+  margin-bottom: 7px;
+  padding: 3px 7px;
+  border-radius: 6px;
+  background: #fde8e8;
+  color: var(--red);
+  font-size: 10px;
+  font-weight: 800;
+  line-height: 1.2;
+}
+
 /* ═══ Branches ═══ */
 .branch-card {
   display: flex;
