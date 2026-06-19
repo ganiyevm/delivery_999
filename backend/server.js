@@ -67,6 +67,7 @@ app.use('/api/branches', require('./src/routes/branches'));
 app.use('/api/orders', require('./src/routes/orders'));
 app.use('/api/user', require('./src/routes/user'));
 app.use('/api/payment', require('./src/routes/payment'));
+app.use('/api/prescriptions', require('./src/routes/prescriptions'));
 app.use('/api/import', require('./src/routes/import'));
 app.use('/api/sync', require('./src/routes/sync'));
 app.use('/api/analytics', require('./src/routes/analytics'));

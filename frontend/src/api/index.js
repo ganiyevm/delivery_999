@@ -33,6 +33,14 @@ export const paymentAPI = {
     checkPayme: (orderId) => api.get(`/payment/payme/check/${orderId}`),
 };
 
+export const prescriptionsAPI = {
+    analyze: (formData, config = {}) => api.post('/prescriptions/analyze', formData, {
+        ...config,
+        headers: { 'Content-Type': 'multipart/form-data', ...(config.headers || {}) },
+        timeout: 90000,
+    }),
+};
+
 export const userAPI = {
     getProfile: () => api.get('/user/profile'),
     updateProfile: (data) => api.put('/user/profile', data),

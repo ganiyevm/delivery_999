@@ -16,6 +16,7 @@ import Addresses from './pages/profile/Addresses';
 import Bonus from './pages/profile/Bonus';
 import Settings from './pages/profile/Settings';
 import Scanner from './pages/Scanner';
+import PrescriptionUpload from './pages/PrescriptionUpload';
 
 /* ── Toast: mahsulot qo'shildi xabarnomasi ─────────────────────── */
 function CartToast() {
@@ -201,7 +202,7 @@ function AppContent() {
         );
     }
 
-    const showNav = !['payment', 'favorites', 'orders', 'addresses', 'bonus', 'settings', 'scanner'].includes(page);
+    const showNav = !['payment', 'favorites', 'orders', 'addresses', 'bonus', 'settings', 'scanner', 'prescription'].includes(page);
 
     return (
         <>
@@ -219,6 +220,7 @@ function AppContent() {
             {page === 'bonus' && <Bonus onBack={goBack} />}
             {page === 'settings' && <Settings onBack={goBack} />}
             {page === 'scanner' && <Scanner onBack={goBack} />}
+            {page === 'prescription' && <PrescriptionUpload onBack={goBack} onCart={() => navigate('cart')} />}
             {showNav && <BottomNav active={page} onNavigate={navigate} />}
             <FloatCartBar page={page} onNavigate={navigate} />
         </>

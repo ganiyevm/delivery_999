@@ -102,6 +102,22 @@ export default function Home({ onNavigate, onProduct, onScanner }) {
                 <input className="search-input" placeholder={t('searchPlaceholder')} readOnly />
             </div>
 
+            <button
+                onClick={() => onNavigate('prescription')}
+                style={{
+                    width: '100%', border: '1px solid rgba(39,174,96,0.24)', background: 'var(--card)',
+                    borderRadius: 16, padding: 14, display: 'flex', alignItems: 'center', gap: 12,
+                    color: 'var(--text)', textAlign: 'left', marginBottom: 16, cursor: 'pointer',
+                    boxShadow: 'var(--shadow-sm)',
+                }}>
+                <span style={{ width: 42, height: 42, borderRadius: 14, background: 'rgba(39,174,96,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 22 }}>🧾</span>
+                <span style={{ flex: 1 }}>
+                    <span style={{ display: 'block', fontWeight: 800, fontSize: 14 }}>{t('prescriptionCtaTitle')}</span>
+                    <span style={{ display: 'block', color: 'var(--text-secondary)', fontSize: 12, marginTop: 3 }}>{t('prescriptionCtaText')}</span>
+                </span>
+                <span style={{ color: 'var(--green)', fontWeight: 900 }}>→</span>
+            </button>
+
             <div className="promo-banner fade-up">
                 <div className="promo-copy">
                     <span className="promo-kicker">999 dorixonalar</span>
