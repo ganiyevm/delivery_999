@@ -7,7 +7,8 @@ import { useT } from '../i18n';
 export default function PrescriptionUpload({ onBack, onCart }) {
     const { t } = useT();
     const { addToCart } = useCart();
-    const fileRef = useRef(null);
+    const cameraRef = useRef(null);
+    const galleryRef = useRef(null);
     const [file, setFile] = useState(null);
     const [preview, setPreview] = useState('');
     const [loading, setLoading] = useState(false);
@@ -85,24 +86,43 @@ export default function PrescriptionUpload({ onBack, onCart }) {
                     </p>
 
                     <input
-                        ref={fileRef}
+                        ref={cameraRef}
                         type="file"
                         accept="image/png,image/jpeg,image/webp"
                         capture="environment"
                         style={{ display: 'none' }}
                         onChange={event => pickFile(event.target.files?.[0])}
                     />
+                    <input
+                        ref={galleryRef}
+                        type="file"
+                        accept="image/png,image/jpeg,image/webp"
+                        style={{ display: 'none' }}
+                        onChange={event => pickFile(event.target.files?.[0])}
+                    />
 
-                    <button
-                        onClick={() => fileRef.current?.click()}
-                        disabled={loading}
-                        style={{
-                            width: '100%', marginTop: 16, padding: '15px 16px', border: 'none',
-                            borderRadius: 14, background: 'var(--green)', color: '#fff',
-                            fontWeight: 800, fontSize: 15, cursor: 'pointer', opacity: loading ? 0.6 : 1,
-                        }}>
-                        📷 {t('prescriptionChoose')}
-                    </button>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginTop: 16 }}>
+                        <button
+                            onClick={() => cameraRef.current?.click()}
+                            disabled={loading}
+                            style={{
+                                padding: '15px 12px', border: 'none', borderRadius: 14,
+                                background: 'var(--green)', color: '#fff', fontWeight: 800,
+                                fontSize: 14, cursor: 'pointer', opacity: loading ? 0.6 : 1,
+                            }}>
+                            📷 {t('prescriptionCamera')}
+                        </button>
+                        <button
+                            onClick={() => galleryRef.current?.click()}
+                            disabled={loading}
+                            style={{
+                                padding: '15px 12px', border: '1px solid var(--border)', borderRadius: 14,
+                                background: 'var(--card)', color: 'var(--text)', fontWeight: 800,
+                                fontSize: 14, cursor: 'pointer', opacity: loading ? 0.6 : 1,
+                            }}>
+                            🖼 {t('prescriptionGallery')}
+                        </button>
+                    </div>
                 </div>
 
                 {preview && (
