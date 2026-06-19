@@ -115,12 +115,19 @@ export default function ProductsList() {
 
             <div className="data-table-wrapper">
                 <table className="data-table">
-                    <thead><tr><th>{t('name')}</th><th>{t('category')}</th><th>Rx</th><th>{t('branches')}</th><th>{t('total')}</th><th>{t('status')}</th><th>{t('actions')}</th></tr></thead>
+                    <thead><tr><th>{t('name')}</th><th>{t('category')}</th><th>{t('photo')}</th><th>Rx</th><th>{t('branches')}</th><th>{t('total')}</th><th>{t('status')}</th><th>{t('actions')}</th></tr></thead>
                     <tbody>
                         {products.map(p => (
                             <tr key={p._id}>
                                 <td style={{ fontWeight: 600 }}>{p.name}</td>
                                 <td><span className="badge badge-blue">{t(`cat_${p.category}`) || p.category}</span></td>
+                                <td>
+                                    {p.imageUrl ? (
+                                        <span className="badge badge-green">📷 {t('hasPhoto')}</span>
+                                    ) : (
+                                        <span className="badge badge-red">🚫 {t('noPhoto')}</span>
+                                    )}
+                                </td>
                                 <td>{p.requiresRx ? '✅' : '—'}</td>
                                 <td>{p.branchCount || 0}</td>
                                 <td>{p.totalQty || 0}</td>
