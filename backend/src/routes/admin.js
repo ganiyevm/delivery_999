@@ -16,6 +16,15 @@ const XLSX = require('xlsx');
 
 router.use(adminAuth);
 
+function normalizeProductPayload(body) {
+    const payload = { ...body };
+    if (Object.prototype.hasOwnProperty.call(payload, 'barcode')) {
+        payload.barcode = String(payload.barcode || '').trim();
+        if (!payload.barcode) delete payload.barcode;
+    }
+    return payload;
+}
+
 // ================== DASHBOARD - RECENT ORDERS ==================
 
 router.get('/recent-orders', async (req, res, next) => {
@@ -296,14 +305,19 @@ router.get('/products', async (req, res, next) => {
 
 router.post('/products', async (req, res, next) => {
     try {
-        const product = await Product.create(req.body);
+        const product = await Product.create(normalizeProductPayload(req.body));
         res.status(201).json(product);
     } catch (error) { next(error); }
 });
 
 router.put('/products/:id', async (req, res, next) => {
     try {
-        const product = await Product.findByIdAndUpdate(req.params.id, req.body, { new: true, runValidators: true });
+        const payload = normalizeProductPayload(req.body);
+        const update = { $set: payload };
+        if (Object.prototype.hasOwnProperty.call(req.body, 'barcode') && !String(req.body.barcode || '').trim()) {
+            update.$unset = { barcode: '' };
+        }
+        const product = await Product.findByIdAndUpdate(req.params.id, update, { new: true, runValidators: true });
         if (!product) return res.status(404).json({ error: 'Mahsulot topilmadi' });
         res.json(product);
     } catch (error) { next(error); }
