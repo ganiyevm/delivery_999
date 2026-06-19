@@ -5,13 +5,20 @@ const { parsePrname } = require('./parse')
 // 1) OSTATOK/nom — eski (ishonchli) view. Bir dorining har EXPDATA partiyasи alohida qator.
 const QUERY_TOTALS = `
 SELECT
-    ID         AS externalId,
-    GOOD_NAME  AS name,
-    PRNAME     AS prname,
-    PRICE      AS price,
-    EXPDATA    AS expiryDate,
-    KOL        AS qty
-FROM dbo.T_RESEDUE_V
+    r.ID         AS externalId,
+    r.GOOD_NAME  AS name,
+    r.PRNAME     AS prname,
+    r.PRICE      AS price,
+    r.EXPDATA    AS expiryDate,
+    r.KOL        AS qty,
+    g.BARCODE    AS barcode,
+    g.GOOD_BARCODE AS goodBarcode,
+    g.REC        AS rec,
+    CASE WHEN ISNULL(g.REC, 0) = 1 THEN 1 ELSE 0 END AS requiresRx,
+    g.FOM_GOOD   AS fomGoodId,
+    g.CLASSCODE  AS classCode
+FROM dbo.T_RESEDUE_V r
+LEFT JOIN dbo.GOOD g ON g.ID = r.ID
 `
 
 // 2) Partiyalar (seriya) — RESIDUE jadvalидан, ALOHIDA (join YO'Q — aks holda cartesian bo'ladi).
@@ -103,15 +110,26 @@ function aggregate(totalRows, batchRows) {
 				externalId: id != null ? String(id) : '',
 				name, manufacturer, country,
 				price, qty, expiryDate: expISO,
+				barcode: normalizeBarcode(row.barcode || row.goodBarcode),
+				requiresRx: Boolean(Number(row.requiresRx) || Number(row.rec)),
+				fomGoodIds: [],
+				classCodes: [],
 				_gids: new Set(),
+				_fomGoodIds: new Set(),
+				_classCodes: new Set(),
 			}
 			map.set(key, e)
 		} else {
 			e.qty += qty
 			if (expISO && (!e.expiryDate || new Date(expISO) < new Date(e.expiryDate))) e.expiryDate = expISO
 			if (price > 0 && (e.price === 0 || price < e.price)) e.price = price
+			if (!e.barcode) e.barcode = normalizeBarcode(row.barcode || row.goodBarcode)
+			if (Number(row.requiresRx) || Number(row.rec)) e.requiresRx = true
 		}
 		if (id != null) e._gids.add(String(id))
+		if (row.fomGoodId != null) e._fomGoodIds.add(Number(row.fomGoodId))
+		const classCode = (row.classCode || '').toString().trim()
+		if (classCode) e._classCodes.add(classCode)
 	}
 
 	return Array.from(map.values()).map(e => {
@@ -132,9 +150,18 @@ function aggregate(totalRows, batchRows) {
 			return a.price - b.price
 		})
 		delete e._gids
+		e.fomGoodIds = Array.from(e._fomGoodIds)
+		e.classCodes = Array.from(e._classCodes)
+		delete e._fomGoodIds
+		delete e._classCodes
 		e.batches = batches
 		return e
 	})
+}
+
+function normalizeBarcode(value) {
+	const barcode = (value || '').toString().trim()
+	return barcode || ''
 }
 
 module.exports = { readBranch }

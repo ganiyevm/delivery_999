@@ -21,6 +21,9 @@ const productSchema = new mongoose.Schema({
         unique: true,
         sparse: true,
     },
+    externalIds: [{ type: String }],
+    fomGoodIds: [{ type: Number }],
+    classCodes: [{ type: String }],
     ingredient: { type: String, default: '' },
     description: {
         uz: { type: String, default: '' },
@@ -40,5 +43,6 @@ productSchema.index({ name: 'text', ingredient: 'text', manufacturer: 'text' });
 
 // Sync uchun: name bo'yicha aniq qidiruv ($in operator) — collection scan'ni oldini olish
 productSchema.index({ name: 1 });
+productSchema.index({ fomGoodIds: 1 });
 
 module.exports = mongoose.model('Product', productSchema);

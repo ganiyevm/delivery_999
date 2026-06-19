@@ -4,6 +4,23 @@ const Branch = require('../models/Branch');
 const { autoCategory, BRANCHES_SEED } = require('../config/constants');
 const cache = require('../utils/cache');
 
+function normalizeBarcode(value) {
+    const barcode = String(value || '').trim();
+    return barcode || '';
+}
+
+function normalizeStringArray(value) {
+    const arr = Array.isArray(value) ? value : [value];
+    return [...new Set(arr.map(item => String(item || '').trim()).filter(Boolean))];
+}
+
+function normalizeNumberArray(value) {
+    const arr = Array.isArray(value) ? value : [value];
+    return [...new Set(arr
+        .map(item => Number(item))
+        .filter(item => Number.isFinite(item) && item > 0))];
+}
+
 const BRANCH_COORDS = new Map([
     [1,  { lat: 41.3135, lng: 69.3537 }],
     [2,  { lat: 41.3399, lng: 69.3126 }],
@@ -80,6 +97,10 @@ async function applyChunk({ branchNumber, syncStartedAt, chunkIndex, totalChunks
                     manufacturer: (item.manufacturer || '').trim(),
                     country: (item.country || '').trim(),
                     category: autoCategory(name),
+                    requiresRx: Boolean(item.requiresRx),
+                    externalIds: normalizeStringArray([item.externalId]),
+                    fomGoodIds: normalizeNumberArray([...(Array.isArray(item.fomGoodIds) ? item.fomGoodIds : [item.fomGoodIds]), item.fomGoodId]),
+                    classCodes: normalizeStringArray([...(Array.isArray(item.classCodes) ? item.classCodes : [item.classCodes]), item.classCode]),
                 });
             }
         }
@@ -104,12 +125,25 @@ async function applyChunk({ branchNumber, syncStartedAt, chunkIndex, totalChunks
             if (!product) continue;
             const mfg = (item.manufacturer || '').trim();
             const country = (item.country || '').trim();
+            const barcode = normalizeBarcode(item.barcode || item.goodBarcode);
+            const externalIds = normalizeStringArray([item.externalId]);
+            const fomGoodIds = normalizeNumberArray([...(Array.isArray(item.fomGoodIds) ? item.fomGoodIds : [item.fomGoodIds]), item.fomGoodId]);
+            const classCodes = normalizeStringArray([...(Array.isArray(item.classCodes) ? item.classCodes : [item.classCodes]), item.classCode]);
             const set = {};
+            const addToSet = {};
             if (mfg && !product.manufacturer) set.manufacturer = mfg;
             if (country && !product.country) set.country = country;
-            if (Object.keys(set).length > 0) {
+            if (item.requiresRx && !product.requiresRx) set.requiresRx = true;
+            if (barcode && !product.barcode) set.barcode = barcode;
+            if (externalIds.length > 0) addToSet.externalIds = { $each: externalIds };
+            if (fomGoodIds.length > 0) addToSet.fomGoodIds = { $each: fomGoodIds };
+            if (classCodes.length > 0) addToSet.classCodes = { $each: classCodes };
+            const update = {};
+            if (Object.keys(set).length > 0) update.$set = set;
+            if (Object.keys(addToSet).length > 0) update.$addToSet = addToSet;
+            if (Object.keys(update).length > 0) {
                 productUpdates.push({
-                    updateOne: { filter: { _id: product._id }, update: { $set: set } },
+                    updateOne: { filter: { _id: product._id }, update },
                 });
             }
         }
