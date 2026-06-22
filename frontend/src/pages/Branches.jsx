@@ -44,10 +44,10 @@ function fmtDist(km) {
 }
 
 const NAV_ICONS = {
-    yandexNav:  'https://upload.wikimedia.org/wikipedia/commons/thumb/a/a3/YandexNavigatorLogo.svg/200px-YandexNavigatorLogo.svg.png',
-    yandexMaps: 'https://upload.wikimedia.org/wikipedia/commons/thumb/7/72/Yandex_Maps_icon.svg/200px-Yandex_Maps_icon.svg.png',
-    googleMaps: 'https://upload.wikimedia.org/wikipedia/commons/thumb/a/aa/Google_Maps_icon_%282020%29.svg/200px-Google_Maps_icon_%282020%29.svg.png',
-    appleMaps:  'https://upload.wikimedia.org/wikipedia/commons/2/21/Apple_Maps_iOS_26_icon.png',
+    yandexNav:  { text: 'Я', background: '#FC3F1D', color: '#FFFFFF' },
+    yandexMaps: { text: 'Я', background: '#FFFFFF', color: '#E32636' },
+    googleMaps: { text: 'G', background: '#FFFFFF', color: '#4285F4' },
+    appleMaps:  { text: 'A', background: '#E8F2FF', color: '#1476BD' },
 };
 function openMapApp(url) {
     const tg = window.Telegram?.WebApp;
@@ -68,16 +68,16 @@ function NavSheet({ branch, onClose, t }) {
     const lng = branch.location?.lng || null;
     const addr = encodeURIComponent((branch.address || '') + ', Toshkent');
     const opts = [
-        { label: 'Yandex Navigator', sub: t('navYandexSub'), src: NAV_ICONS.yandexNav,
+        { label: 'Yandex Navigator', sub: t('navYandexSub'), icon: NAV_ICONS.yandexNav,
           url: lat ? `https://yandex.uz/maps/?rtext=~${lat},${lng}&rtt=auto` : `https://yandex.uz/maps/?text=${addr}&rtt=auto` },
-        { label: 'Yandex Maps', sub: t('navYandexMapsSub'), src: NAV_ICONS.yandexMaps,
+        { label: 'Yandex Maps', sub: t('navYandexMapsSub'), icon: NAV_ICONS.yandexMaps,
           url: lat ? `https://yandex.uz/maps/?pt=${lng},${lat}&z=17` : `https://yandex.uz/maps/?text=${addr}` },
-        { label: 'Google Maps', sub: t('navGoogleSub'), src: NAV_ICONS.googleMaps,
+        { label: 'Google Maps', sub: t('navGoogleSub'), icon: NAV_ICONS.googleMaps,
           url: lat ? `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}` : `https://www.google.com/maps/search/?api=1&query=${addr}` },
     ];
     if (isIOSDevice()) {
         opts.push({
-            label: 'Apple Maps', sub: t('navAppleSub'), src: NAV_ICONS.appleMaps,
+            label: 'Apple Maps', sub: t('navAppleSub'), icon: NAV_ICONS.appleMaps,
             url: lat ? `https://maps.apple.com/?daddr=${lat},${lng}&dirflg=d` : `https://maps.apple.com/?q=${addr}`,
         });
     }
@@ -114,7 +114,13 @@ function NavSheet({ branch, onClose, t }) {
                 {opts.map(o => (
                     <button key={o.label} onClick={() => { openMapApp(o.url); onClose(); }}
                         style={{ display: 'flex', alignItems: 'center', gap: 14, width: '100%', padding: '11px 20px', background: 'none', border: 'none', cursor: 'pointer' }}>
-                        <img src={o.src} alt={o.label} width={44} height={44} style={{ borderRadius: 11, objectFit: 'cover', flexShrink: 0 }} />
+                        <span aria-hidden="true" style={{
+                            width: 44, height: 44, borderRadius: 11, flexShrink: 0,
+                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                            background: o.icon.background, color: o.icon.color,
+                            border: '1px solid rgba(99,116,131,0.22)',
+                            fontSize: 24, fontWeight: 900,
+                        }}>{o.icon.text}</span>
                         <span style={{ flex: 1, textAlign: 'left' }}>
                             <div style={{ fontWeight: 600, fontSize: 14, color: 'var(--text)' }}>{o.label}</div>
                             <div style={{ fontSize: 12, color: 'var(--text-secondary)' }}>{o.sub}</div>

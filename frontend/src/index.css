@@ -1198,10 +1198,17 @@ body {
 [data-theme="dark"] .branch-card,
 [data-theme="dark"] .cart-item,
 [data-theme="dark"] .product-detail-img,
+[data-theme="dark"] .delivery-info,
 [data-theme="dark"] .setting-row {
   background: rgba(17, 28, 36, 0.96);
   border-color: rgba(55, 78, 92, 0.72);
   box-shadow: var(--shadow);
+}
+
+[data-theme="dark"] .bonus-card {
+  background: linear-gradient(135deg, #0B6F28 0%, #10983A 62%, #136F9F 100%);
+  border: 1px solid rgba(98, 227, 122, 0.18);
+  box-shadow: 0 14px 34px rgba(0, 0, 0, 0.30);
 }
 
 [data-theme="dark"] .search-result-img,
