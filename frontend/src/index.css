@@ -401,6 +401,20 @@ body {
   border: 1px solid rgba(221,232,239,0.85);
 }
 
+.stat-card-button {
+  width: 100%;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+  appearance: none;
+  transition: transform 0.15s ease, border-color 0.15s ease;
+}
+
+.stat-card-button:active {
+  transform: scale(0.97);
+  border-color: var(--green);
+}
+
 .stat-card .icon {
   width: 28px;
   height: 28px;

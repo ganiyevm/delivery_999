@@ -130,11 +130,16 @@ export default function Home({ onNavigate, onProduct, onScanner }) {
             </div>
 
             <div className="stats-grid fade-up">
-                <div className="stat-card">
+                <button
+                    type="button"
+                    className="stat-card stat-card-button"
+                    onClick={() => onNavigate('branches')}
+                    aria-label={t('branches')}
+                >
                     <div className="icon">№</div>
                     <div className="value">{branchCount}</div>
                     <div className="label">{t('branchStat')}</div>
-                </div>
+                </button>
                 <div className="stat-card">
                     <div className="icon">Rx</div>
                     <div className="value">4000+</div>
