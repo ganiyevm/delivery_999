@@ -1,4 +1,4 @@
-import { lazy, Suspense, useState, useEffect, useCallback } from 'react';
+import { lazy, Suspense, useState, useEffect, useCallback, useLayoutEffect, useRef } from 'react';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { CartProvider, useCart } from './context/CartContext';
 import { useT } from './i18n';
@@ -86,8 +86,16 @@ function AppContent() {
     // Navigatsiya tarixi (stack) — orqaga qaytish va Telegram BackButton uchun
     const [stack, setStack] = useState([{ page: 'home' }]);
     const current = stack[stack.length - 1];
-    const { page, productId, paymentOrderId, catalogCategory } = current;
+    const { page, productId, paymentOrderId } = current;
+    const restoreScrollRef = useRef(null);
     const { loading, error, retryAuth } = useAuth();
+
+    useLayoutEffect(() => {
+        if (restoreScrollRef.current === null) return;
+        const scrollY = restoreScrollRef.current;
+        restoreScrollRef.current = null;
+        window.scrollTo(0, scrollY);
+    }, [current]);
 
     // Eng ko'p ochiladigan sahifalarni brauzer bo'shaganda fonda tayyorlab qo'yamiz.
     useEffect(() => {
@@ -120,12 +128,20 @@ function AppContent() {
     }, []);
 
     const goBack = useCallback(() => {
-        setStack(prev => (prev.length > 1 ? prev.slice(0, -1) : prev));
-        window.scrollTo(0, 0);
+        setStack(prev => {
+            if (prev.length <= 1) return prev;
+            const next = prev.slice(0, -1);
+            restoreScrollRef.current = next[next.length - 1]?.scrollY || 0;
+            return next;
+        });
     }, []);
 
     const openProduct = useCallback((product) => {
-        setStack(prev => [...prev, { page: 'productDetail', productId: product._id }]);
+        setStack(prev => {
+            const top = prev[prev.length - 1];
+            const withScroll = [...prev.slice(0, -1), { ...top, scrollY: window.scrollY }];
+            return [...withScroll, { page: 'productDetail', productId: product._id }];
+        });
         window.scrollTo(0, 0);
     }, []);
 
@@ -228,13 +244,23 @@ function AppContent() {
     }
 
     const showNav = !['payment', 'favorites', 'orders', 'addresses', 'bonus', 'settings', 'scanner', 'prescription'].includes(page);
+    const catalogEntry = stack.find(entry => entry.page === 'catalog');
 
     return (
         <>
             <CartToast />
             {page === 'home' && <Home onNavigate={navigate} onProduct={openProduct} onScanner={() => navigate('scanner')} />}
             <Suspense fallback={<PageLoader />}>
-                {page === 'catalog' && <Catalog onProduct={openProduct} initialCategory={catalogCategory} />}
+                {catalogEntry && (
+                    <div style={{ display: page === 'catalog' ? 'block' : 'none' }} aria-hidden={page !== 'catalog'}>
+                        <Catalog
+                            key={catalogEntry.catalogCategory || 'all'}
+                            onProduct={openProduct}
+                            initialCategory={catalogEntry.catalogCategory}
+                            active={page === 'catalog'}
+                        />
+                    </div>
+                )}
                 {page === 'productDetail' && <ProductDetail productId={productId} onBack={goBack} />}
                 {page === 'branches' && <Branches />}
                 {page === 'cart' && <Cart onNavigate={navigate} onPayment={openPayment} />}

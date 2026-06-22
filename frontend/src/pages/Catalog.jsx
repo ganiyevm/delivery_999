@@ -5,7 +5,7 @@ import { useT } from '../i18n';
 
 const CATEGORY_KEYS = ['', 'pain', 'antibiotics', 'vitamins', 'heart', 'children', 'cosmetics', 'devices', 'stomach'];
 
-export default function Catalog({ onProduct, initialCategory }) {
+export default function Catalog({ onProduct, initialCategory, active = true }) {
     const { t } = useT();
     const [products, setProducts] = useState([]);
     const [inputValue, setInputValue] = useState('');
@@ -50,6 +50,7 @@ export default function Catalog({ onProduct, initialCategory }) {
     // MUHIM: faqat foydalanuvchi ro'yxat tepasida bo'lsa yangilaymiz — aks holda
     // pastga skroll qilingan ro'yxat 1-betga "sakrab", skroll yo'qoladi.
     useEffect(() => {
+        if (!active) return undefined;
         const refreshIfTop = () => {
             if (document.visibilityState === 'visible' && window.scrollY < 200) {
                 fetchProducts(1, true);
@@ -64,9 +65,13 @@ export default function Catalog({ onProduct, initialCategory }) {
             window.removeEventListener('focus', refreshIfTop);
             clearInterval(intervalId);
         };
-    }, [fetchProducts]);
+    }, [active, fetchProducts]);
 
     const lastRef = useCallback(node => {
+        if (!active) {
+            observerRef.current?.disconnect();
+            return;
+        }
         if (loading) return;
         if (observerRef.current) observerRef.current.disconnect();
         observerRef.current = new IntersectionObserver(entries => {
@@ -75,7 +80,7 @@ export default function Catalog({ onProduct, initialCategory }) {
             }
         });
         if (node) observerRef.current.observe(node);
-    }, [loading, hasMore, page]);
+    }, [active, loading, hasMore, page]);
 
     const handleSearch = (e) => {
         const val = e.target.value;
