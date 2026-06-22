@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { productsAPI, branchesAPI } from '../api/index';
 import ProductCard from '../components/ProductCard';
 import { useAuth } from '../context/AuthContext';
@@ -41,6 +41,7 @@ export default function Home({ onNavigate, onProduct, onScanner }) {
     const { t } = useT();
     const [popular, setPopular] = useState([]);
     const [branchCount, setBranchCount] = useState(20);
+    const deliveryRef = useRef(null);
 
     const loadHomeData = () => {
         productsAPI.getAll({ sort: 'popular', limit: 6 })
@@ -140,16 +141,26 @@ export default function Home({ onNavigate, onProduct, onScanner }) {
                     <div className="value">{branchCount}</div>
                     <div className="label">{t('branchStat')}</div>
                 </button>
-                <div className="stat-card">
+                <button
+                    type="button"
+                    className="stat-card stat-card-button"
+                    onClick={() => onNavigate('catalog')}
+                    aria-label={t('catalog')}
+                >
                     <div className="icon">Rx</div>
                     <div className="value">4000+</div>
                     <div className="label">{t('medicineStat')}</div>
-                </div>
-                <div className="stat-card">
+                </button>
+                <button
+                    type="button"
+                    className="stat-card stat-card-button"
+                    onClick={() => deliveryRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
+                    aria-label={t('deliveryTitle')}
+                >
                     <div className="icon">24</div>
                     <div className="value">1-2</div>
                     <div className="label">{t('hourStat')}</div>
-                </div>
+                </button>
             </div>
 
             {user && (
@@ -180,28 +191,30 @@ export default function Home({ onNavigate, onProduct, onScanner }) {
                 ))}
             </div>
 
-            <h3 className="section-title">{t('deliveryTitle')}</h3>
-            <div className="delivery-info fade-up">
-                <div className="delivery-info-grid">
-                    <div className="delivery-info-item">
-                        <div className="icon">💰</div>
-                        <div className="text">50 000 {t('currency')}</div>
-                        <div className="sub">{t('minOrder')}</div>
-                    </div>
-                    <div className="delivery-info-item">
-                        <div className="icon">🚚</div>
-                        <div className="text">1-2 {t('hourStat')}</div>
-                        <div className="sub">{t('deliveryTime')}</div>
-                    </div>
-                    <div className="delivery-info-item">
-                        <div className="icon">💳</div>
-                        <div className="text">Payme / Click</div>
-                        <div className="sub">{t('paymentMethod')}</div>
-                    </div>
-                    <div className="delivery-info-item">
-                        <div className="icon">🕐</div>
-                        <div className="text">09:00 — 22:00</div>
-                        <div className="sub">{t('workHours')}</div>
+            <div ref={deliveryRef}>
+                <h3 className="section-title">{t('deliveryTitle')}</h3>
+                <div className="delivery-info fade-up">
+                    <div className="delivery-info-grid">
+                        <div className="delivery-info-item">
+                            <div className="icon">💰</div>
+                            <div className="text">50 000 {t('currency')}</div>
+                            <div className="sub">{t('minOrder')}</div>
+                        </div>
+                        <div className="delivery-info-item">
+                            <div className="icon">🚚</div>
+                            <div className="text">1-2 {t('hourStat')}</div>
+                            <div className="sub">{t('deliveryTime')}</div>
+                        </div>
+                        <div className="delivery-info-item">
+                            <div className="icon">💳</div>
+                            <div className="text">Payme / Click</div>
+                            <div className="sub">{t('paymentMethod')}</div>
+                        </div>
+                        <div className="delivery-info-item">
+                            <div className="icon">🕐</div>
+                            <div className="text">09:00 — 22:00</div>
+                            <div className="sub">{t('workHours')}</div>
+                        </div>
                     </div>
                 </div>
             </div>
