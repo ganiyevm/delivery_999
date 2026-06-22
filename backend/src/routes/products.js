@@ -9,8 +9,8 @@ const SYNCED_BRANCHES_TTL = 30_000;  // 30 soniya — branch isSynced kam o'zgar
 const COUNT_TTL = 60_000;             // 1 daqiqa — total count
 const PRODUCT_LIST_TTL = 10_000;      // narx/qoldiq tez yangilanadi, qisqa cache yetarli
 const PRODUCT_LIST_FIELDS = [
-    'name', 'category', 'manufacturer', 'country', 'ingredient',
-    'description', 'requiresRx', 'imageType', 'imageUrl',
+    'name', 'category', 'manufacturer', 'country',
+    'requiresRx', 'imageType', 'imageUrl',
 ].join(' ');
 
 async function getSyncedBranchIds() {
@@ -58,7 +58,10 @@ router.get('/', async (req, res, next) => {
             ];
         }
 
-        let query = Product.find(filter).select(PRODUCT_LIST_FIELDS);
+        const listFields = search
+            ? `${PRODUCT_LIST_FIELDS} ingredient description`
+            : PRODUCT_LIST_FIELDS;
+        let query = Product.find(filter).select(listFields);
 
         // Sortlash
         if (sort === 'popular') {
