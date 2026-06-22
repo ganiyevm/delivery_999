@@ -185,7 +185,7 @@ function BranchCard({ branch, userLoc, isNearest, onNavigate, isSelected, t }) {
                     <div style={{ fontSize: 12, color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: 6 }}>
                         <span>📞</span>
                         <a href={`tel:${branch.phone}`} onClick={e => e.stopPropagation()}
-                            style={{ color: 'var(--blue-light)', textDecoration: 'none', fontWeight: 600 }}>
+                            style={{ color: 'var(--blue-dark)', textDecoration: 'none', fontWeight: 700 }}>
                             {branch.phone}
                         </a>
                     </div>
