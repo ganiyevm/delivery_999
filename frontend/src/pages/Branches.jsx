@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
-import { MapContainer, TileLayer, Marker, Popup, Circle, useMap } from 'react-leaflet';
+import { MapContainer, TileLayer, Marker, Popup, Circle } from 'react-leaflet';
 import L from 'leaflet';
 import { branchesAPI } from '../api/index';
 import { useT } from '../i18n';
@@ -43,14 +43,6 @@ function fmtDist(km) {
     return `${km.toFixed(1)} km`;
 }
 
-function MapFlyTo({ center, zoom }) {
-    const map = useMap();
-    useEffect(() => {
-        if (center) map.flyTo(center, zoom, { duration: 0.8 });
-    }, [center, zoom]);
-    return null;
-}
-
 const NAV_ICONS = {
     yandexNav:  'https://upload.wikimedia.org/wikipedia/commons/thumb/a/a3/YandexNavigatorLogo.svg/200px-YandexNavigatorLogo.svg.png',
     yandexMaps: 'https://upload.wikimedia.org/wikipedia/commons/thumb/7/72/Yandex_Maps_icon.svg/200px-Yandex_Maps_icon.svg.png',
@@ -61,6 +53,14 @@ function openMapApp(url) {
     const tg = window.Telegram?.WebApp;
     if (tg?.openLink) tg.openLink(url);
     else window.open(url, '_blank');
+}
+
+function isIOSDevice() {
+    const tgPlatform = window.Telegram?.WebApp?.platform;
+    if (tgPlatform === 'ios') return true;
+    const ua = navigator.userAgent || '';
+    return /iPad|iPhone|iPod/i.test(ua)
+        || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
 }
 
 function NavSheet({ branch, onClose, t }) {
@@ -74,19 +74,43 @@ function NavSheet({ branch, onClose, t }) {
           url: lat ? `https://yandex.uz/maps/?pt=${lng},${lat}&z=17` : `https://yandex.uz/maps/?text=${addr}` },
         { label: 'Google Maps', sub: t('navGoogleSub'), src: NAV_ICONS.googleMaps,
           url: lat ? `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}` : `https://www.google.com/maps/search/?api=1&query=${addr}` },
-        { label: 'Apple Maps', sub: t('navAppleSub'), src: NAV_ICONS.appleMaps,
-          url: lat ? `https://maps.apple.com/?daddr=${lat},${lng}&dirflg=d` : `https://maps.apple.com/?q=${addr}` },
     ];
+    if (isIOSDevice()) {
+        opts.push({
+            label: 'Apple Maps', sub: t('navAppleSub'), src: NAV_ICONS.appleMaps,
+            url: lat ? `https://maps.apple.com/?daddr=${lat},${lng}&dirflg=d` : `https://maps.apple.com/?q=${addr}`,
+        });
+    }
     return (
         <div style={{ position: 'fixed', inset: 0, zIndex: 9999, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'flex-end' }}
             onClick={onClose}>
-            <div style={{ width: '100%', background: 'var(--card)', borderRadius: '20px 20px 0 0', paddingBottom: 32, animation: 'slideUp .22s ease' }}
+            <div style={{ width: '100%', maxHeight: '88vh', overflowY: 'auto', background: 'var(--card)', borderRadius: '20px 20px 0 0', paddingBottom: 'max(24px, env(safe-area-inset-bottom))', animation: 'slideUp .22s ease' }}
                 onClick={e => e.stopPropagation()}>
                 <div style={{ width: 36, height: 4, borderRadius: 2, background: 'var(--border)', margin: '12px auto 6px' }} />
-                <div style={{ padding: '10px 20px 12px', borderBottom: '1px solid var(--border)' }}>
-                    <div style={{ fontWeight: 700, fontSize: 15 }}>{branch.name}</div>
-                    <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginTop: 2 }}>{branch.address || '—'}</div>
+                <div style={{ padding: '10px 20px 16px', borderBottom: '1px solid var(--border)' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+                        <div style={{ fontWeight: 800, fontSize: 17 }}>№{String(branch.number).padStart(3, '0')} {branch.name}</div>
+                        <span style={{ flexShrink: 0, fontSize: 11, fontWeight: 700, color: branch.isOpen ? 'var(--green)' : 'var(--text-secondary)' }}>
+                            ● {branch.isOpen ? t('openText') : t('closedText')}
+                        </span>
+                    </div>
+                    <div style={{ display: 'grid', gap: 9, marginTop: 14, color: 'var(--text-secondary)', fontSize: 13, lineHeight: 1.4 }}>
+                        <div style={{ display: 'flex', gap: 9 }}><span>📍</span><span>{branch.address || t('noAddress')}</span></div>
+                        <div style={{ display: 'flex', gap: 9 }}><span>🕐</span><span><strong style={{ color: 'var(--text)' }}>{t('workHours')}:</strong> {branch.hours || '09:00 — 22:00'}</span></div>
+                        {branch.phone && (
+                            <a href={`tel:${branch.phone}`} style={{ display: 'flex', gap: 9, color: 'var(--green)', textDecoration: 'none', fontWeight: 700 }}>
+                                <span>📞</span><span>{branch.phone}</span>
+                            </a>
+                        )}
+                    </div>
+                    {branch.phone && (
+                        <a href={`tel:${branch.phone}`} className="btn-primary"
+                            style={{ display: 'flex', marginTop: 14, textDecoration: 'none', alignItems: 'center', justifyContent: 'center' }}>
+                            📞 {t('callBranch')}
+                        </a>
+                    )}
                 </div>
+                <div style={{ padding: '13px 20px 5px', fontSize: 12, color: 'var(--text-secondary)', fontWeight: 700 }}>{t('chooseMap')}</div>
                 {opts.map(o => (
                     <button key={o.label} onClick={() => { openMapApp(o.url); onClose(); }}
                         style={{ display: 'flex', alignItems: 'center', gap: 14, width: '100%', padding: '11px 20px', background: 'none', border: 'none', cursor: 'pointer' }}>
@@ -106,15 +130,13 @@ function NavSheet({ branch, onClose, t }) {
     );
 }
 
-function BranchCard({ branch, userLoc, isNearest, onNavigate, onSelect, isSelected, t }) {
+function BranchCard({ branch, userLoc, isNearest, onNavigate, isSelected, t }) {
     const dist = userLoc && branch.location?.lat
         ? haversine(userLoc.lat, userLoc.lng, branch.location.lat, branch.location.lng)
         : null;
-    const hasCoords = !!(branch.location?.lat && branch.location.lat !== 0);
-
     return (
         <div
-            onClick={() => onSelect(branch)}
+            onClick={() => onNavigate(branch)}
             style={{
                 background: 'var(--card)', borderRadius: 16, padding: '14px 16px',
                 border: `2px solid ${isSelected ? 'var(--green)' : isNearest ? 'rgba(39,174,96,0.3)' : 'var(--border)'}`,
@@ -167,16 +189,14 @@ function BranchCard({ branch, userLoc, isNearest, onNavigate, onSelect, isSelect
                 </div>
             </div>
 
-            {hasCoords && (
-                <button
-                    onClick={e => { e.stopPropagation(); onNavigate(branch); }}
-                    style={{ marginTop: 12, width: '100%', padding: '10px', borderRadius: 12, background: 'var(--green)', color: '#fff', border: 'none', fontWeight: 700, fontSize: 13, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
-                        <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z" fill="white"/>
-                    </svg>
-                    {t('getDirections')}
-                </button>
-            )}
+            <button
+                onClick={e => { e.stopPropagation(); onNavigate(branch); }}
+                style={{ marginTop: 12, width: '100%', padding: '10px', borderRadius: 12, background: 'var(--green)', color: '#fff', border: 'none', fontWeight: 700, fontSize: 13, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+                    <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z" fill="white"/>
+                </svg>
+                {t('branchDetails')}
+            </button>
         </div>
     );
 }
@@ -190,7 +210,6 @@ export default function Branches() {
     const [navBranch,  setNavBranch]  = useState(null);
     const [selected,   setSelected]   = useState(null);
     const [view,       setView]       = useState('list');
-    const [flyTo,      setFlyTo]      = useState(null);
     const listRef = useRef(null);
     const cardRefs = useRef({});
 
@@ -256,13 +275,6 @@ export default function Branches() {
         }, 100);
     };
 
-    const handleCardSelect = (branch) => {
-        if (!branch.location?.lat) return;
-        setSelected(branch);
-        setFlyTo({ center: [branch.location.lat, branch.location.lng], zoom: 17 });
-        if (view === 'list') setView('map');
-    };
-
     const mapCenter = nearest?.location
         ? [nearest.location.lat, nearest.location.lng]
         : [41.2995, 69.2401];
@@ -306,7 +318,6 @@ export default function Branches() {
                     <div style={{ borderRadius: 18, overflow: 'hidden', height: 380, border: '1px solid var(--border)' }}>
                         <MapContainer center={mapCenter} zoom={12} style={{ height: '100%', width: '100%' }} zoomControl={false}>
                             <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" attribution='© OpenStreetMap' />
-                            {flyTo && <MapFlyTo center={flyTo.center} zoom={flyTo.zoom} />}
                             {userLoc && (
                                 <>
                                     <Circle center={[userLoc.lat, userLoc.lng]} radius={300}
@@ -353,7 +364,6 @@ export default function Branches() {
                                 isNearest={b._id === nearest?._id && !!userLoc}
                                 isSelected={selected?._id === b._id}
                                 onNavigate={setNavBranch}
-                                onSelect={handleCardSelect}
                                 t={t}
                             />
                         </div>
