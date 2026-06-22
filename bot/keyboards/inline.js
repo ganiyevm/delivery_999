@@ -30,7 +30,7 @@ const keyboards = {
     // WebApp
     webApp: (url) => {
         return new InlineKeyboard()
-            .webApp('🏥 Aptekani ochish', url);
+            .webApp('🏥 Dorixonani ochish', url);
     },
 };
 

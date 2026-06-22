@@ -12,7 +12,7 @@ module.exports = (bot) => {
         ctx.session.awaitingImport = true;
         await ctx.reply(
             '📤 <b>Excel import</b>\n\n' +
-            'Excel faylni yuboring (.xlsx)\n\n' +
+            'Excel faylini yuboring (.xlsx yoki .xls)\n\n' +
             '📋 Ustunlar tartibi:\n' +
             'A: Филиал | B: Наименование\n' +
             'C: Производитель | D: Цена | E: Кол-во',
@@ -29,7 +29,7 @@ module.exports = (bot) => {
         const ext = path.extname(doc.file_name || '').toLowerCase();
 
         if (!['.xlsx', '.xls'].includes(ext)) {
-            return ctx.reply('❌ Faqat Excel fayllar (.xlsx) qabul qilinadi');
+            return ctx.reply('❌ Faqat Excel fayllari (.xlsx yoki .xls) qabul qilinadi');
         }
 
         await ctx.reply('⏳ Import boshlanmoqda...');
@@ -50,10 +50,10 @@ module.exports = (bot) => {
             const result = await ImportService.importExcel(tmpPath, ctx.from.id);
 
             // Natija
-            let text = `✅ <b>Import tugadi!</b>\n─────────────────\n` +
-                `📊 Jami qatorlar: <b>${result.totalRows.toLocaleString()}</b>\n` +
-                `✅ Muvaffaqiyatli: <b>${result.successRows.toLocaleString()}</b>\n` +
-                `❌ Xatolar: <b>${result.errorRows}</b>\n`;
+            let text = `✅ <b>Import yakunlandi!</b>\n─────────────────\n` +
+                `📊 Jami qator: <b>${result.totalRows.toLocaleString()}</b>\n` +
+                `✅ Import qilindi: <b>${result.successRows.toLocaleString()}</b>\n` +
+                `❌ Xatolar soni: <b>${result.errorRows}</b>\n`;
 
             if (result.errors.length > 0) {
                 text += `─────────────────\n<b>Xatolar:</b>\n`;

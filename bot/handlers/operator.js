@@ -52,7 +52,7 @@ module.exports = (bot) => {
                 { parse_mode: 'HTML' }
             );
 
-            await ctx.answerCallbackQuery('✅ To\'lov Mini App ichida ochiladi!');
+            await ctx.answerCallbackQuery('✅ To\'lov oynasi Mini App ichida ochiladi!');
         } catch (error) {
             console.error('Confirm error:', error);
             await ctx.answerCallbackQuery('Xato yuz berdi');
@@ -106,7 +106,7 @@ module.exports = (bot) => {
             await ctx.editMessageText(
                 `❌ <b>Rad etildi</b> — ${order.customerName}\n` +
                 `📦 #${order.orderNumber}\n` +
-                `💵 ${order.total.toLocaleString()} сўм\n` +
+                `💵 ${order.total.toLocaleString()} so'm\n` +
                 `📝 Sabab: ${reasonText}\n` +
                 `🕐 ${new Date().toLocaleTimeString('uz-UZ', { hour: '2-digit', minute: '2-digit' })}`,
                 { parse_mode: 'HTML' }
@@ -130,7 +130,7 @@ module.exports = (bot) => {
 
             if (!order) return ctx.answerCallbackQuery('Topilmadi');
             if (order.status !== 'confirmed') {
-                return ctx.answerCallbackQuery('Status to\'g\'ri emas');
+                return ctx.answerCallbackQuery('Buyurtma holati mos emas');
             }
 
             order.status = 'on_the_way';
@@ -150,7 +150,7 @@ module.exports = (bot) => {
             await ctx.editMessageText(
                 `🚗 <b>Yo'lda</b> — ${order.customerName}\n` +
                 `📦 #${order.orderNumber}\n` +
-                `💵 ${order.total.toLocaleString()} сўм\n` +
+                `💵 ${order.total.toLocaleString()} so'm\n` +
                 `🕐 ${new Date().toLocaleTimeString('uz-UZ', { hour: '2-digit', minute: '2-digit' })}`,
                 { parse_mode: 'HTML', reply_markup: keyboard }
             );

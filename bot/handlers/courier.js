@@ -11,7 +11,7 @@ module.exports = (bot) => {
 
             if (!order) return ctx.answerCallbackQuery('Topilmadi');
             if (order.status !== 'on_the_way') {
-                return ctx.answerCallbackQuery('Status to\'g\'ri emas');
+                return ctx.answerCallbackQuery('Buyurtma holati mos emas');
             }
 
             order.status = 'delivered';
@@ -38,7 +38,7 @@ module.exports = (bot) => {
             await ctx.editMessageText(
                 `✅ <b>Yetkazildi</b> — ${order.customerName}\n` +
                 `📦 #${order.orderNumber}\n` +
-                `💵 ${order.total.toLocaleString()} сўм\n` +
+                `💵 ${order.total.toLocaleString()} so'm\n` +
                 `🚗 Kuryer: ${ctx.from.first_name}\n` +
                 `⏱ ${deliveryMinutes} daqiqa\n` +
                 `🕐 ${new Date().toLocaleTimeString('uz-UZ', { hour: '2-digit', minute: '2-digit' })}`,

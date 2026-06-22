@@ -35,7 +35,7 @@ module.exports = (bot) => {
 
         try {
             const text = payMatch
-                ? "✅ To'lov qabul qilindi. Buyurtmani davom ettirish uchun ilovani oching."
+                ? loc.paymentReceived
                 : loc.welcome(branchCount);
             await ctx.reply(text, { parse_mode: 'HTML', reply_markup: keyboard });
         } catch (err) {
@@ -87,14 +87,14 @@ module.exports = (bot) => {
     // /register — operator o'zini fililiga biriktiradi
     bot.command('register', async (ctx) => {
         const userId = ctx.from?.id;
-        if (!userId) return ctx.reply('❌ Telegram ID aniqlanmadi.');
+        if (!userId) return ctx.reply('❌ Telegram ID raqami aniqlanmadi.');
 
         // operatorIds ichida bu foydalanuvchi bormi?
         const branch = await Branch.findOne({ operatorIds: userId }).lean();
         if (!branch) {
             return ctx.reply(
                 '❌ Siz hech qaysi filialga operator sifatida qo\'shilmagansiz.\n\n' +
-                'Admin paneldan filial → Operator IDlar ga Telegram ID ingizni qo\'shtiring:\n' +
+                'Admin panelda filialning “Operator ID raqamlari” bo\'limiga Telegram ID raqamingizni qo\'shing:\n' +
                 `<code>${userId}</code>`,
                 { parse_mode: 'HTML' }
             );
@@ -107,7 +107,7 @@ module.exports = (bot) => {
             `✅ Muvaffaqiyatli ro'yxatdan o'tdingiz!\n\n` +
             `🏪 Filial: <b>${branch.name}</b>\n` +
             `📬 Chat ID: <code>${ctx.chat.id}</code>\n\n` +
-            `Endi yangi zakazlar shu chatga keladi.`,
+            `Endi yangi buyurtmalar shu chatga yuboriladi.`,
             { parse_mode: 'HTML' }
         );
         console.log(`[operator] Register: userId=${userId} → branch #${branch.number} (${branch.name}), chatId=${ctx.chat.id}`);
@@ -116,7 +116,7 @@ module.exports = (bot) => {
     // /my_id — Telegram ID ni ko'rish (admin panel uchun)
     bot.command('my_id', async (ctx) => {
         await ctx.reply(
-            `Telegram ID ingiz: <code>${ctx.from?.id}</code>\n` +
+            `Telegram ID raqamingiz: <code>${ctx.from?.id}</code>\n` +
             `Chat ID: <code>${ctx.chat?.id}</code>`,
             { parse_mode: 'HTML' }
         );
