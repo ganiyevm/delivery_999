@@ -255,6 +255,7 @@ async function applyChunk({ branchNumber, syncStartedAt, chunkIndex, totalChunks
 
     // Yangi mahsulot qo'shilgan bo'lishi mumkin — count cache ni tozalaymiz
     cache.delByPrefix('count:');
+    cache.delByPrefix('products:');
 
     console.log(
         `[sync] Filial #${branchNumber} chunk ${chunkIndex + 1}/${totalChunks} — ` +

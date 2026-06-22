@@ -80,7 +80,7 @@ export default function Home({ onNavigate, onProduct, onScanner }) {
         <div className="page">
             <header className="header">
                 <div className="header-logo">
-                    <img className="header-logo-img" src="/logo999.jpg" alt="999" />
+                    <img className="header-logo-img" src="/logo999.jpg" alt="999" decoding="async" fetchPriority="high" />
                     <div>
                         <div className="header-eyebrow">{t('branchSubtitle').replace('{n}', branchCount)}</div>
                         <h1>{t('appName')}</h1>
@@ -125,7 +125,7 @@ export default function Home({ onNavigate, onProduct, onScanner }) {
                     <p>{t('promoText')}</p>
                 </div>
                 <div className="promo-mark">
-                    <img src="/logo999.jpg" alt="" />
+                    <img src="/logo999.jpg" alt="" loading="lazy" decoding="async" />
                 </div>
             </div>
 

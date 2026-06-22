@@ -1,22 +1,31 @@
-import { useState, useEffect, useCallback } from 'react';
+import { lazy, Suspense, useState, useEffect, useCallback } from 'react';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { CartProvider, useCart } from './context/CartContext';
 import { useT } from './i18n';
 import BottomNav from './components/BottomNav';
 import Home from './pages/Home';
-import Catalog from './pages/Catalog';
-import ProductDetail from './pages/ProductDetail';
-import Branches from './pages/Branches';
-import Cart from './pages/Cart';
-import Payment from './pages/Payment';
-import Profile from './pages/profile/Profile';
-import Favorites from './pages/profile/Favorites';
-import Orders from './pages/profile/Orders';
-import Addresses from './pages/profile/Addresses';
-import Bonus from './pages/profile/Bonus';
-import Settings from './pages/profile/Settings';
-import Scanner from './pages/Scanner';
-import PrescriptionUpload from './pages/PrescriptionUpload';
+
+const importCatalog = () => import('./pages/Catalog');
+const importProductDetail = () => import('./pages/ProductDetail');
+const importCart = () => import('./pages/Cart');
+
+const Catalog = lazy(importCatalog);
+const ProductDetail = lazy(importProductDetail);
+const Branches = lazy(() => import('./pages/Branches'));
+const Cart = lazy(importCart);
+const Payment = lazy(() => import('./pages/Payment'));
+const Profile = lazy(() => import('./pages/profile/Profile'));
+const Favorites = lazy(() => import('./pages/profile/Favorites'));
+const Orders = lazy(() => import('./pages/profile/Orders'));
+const Addresses = lazy(() => import('./pages/profile/Addresses'));
+const Bonus = lazy(() => import('./pages/profile/Bonus'));
+const Settings = lazy(() => import('./pages/profile/Settings'));
+const Scanner = lazy(() => import('./pages/Scanner'));
+const PrescriptionUpload = lazy(() => import('./pages/PrescriptionUpload'));
+
+function PageLoader() {
+    return <div className="loading"><div className="loading-spinner" /></div>;
+}
 
 /* ── Toast: mahsulot qo'shildi xabarnomasi ─────────────────────── */
 function CartToast() {
@@ -79,6 +88,22 @@ function AppContent() {
     const current = stack[stack.length - 1];
     const { page, productId, paymentOrderId, catalogCategory } = current;
     const { loading, error, retryAuth } = useAuth();
+
+    // Eng ko'p ochiladigan sahifalarni brauzer bo'shaganda fonda tayyorlab qo'yamiz.
+    useEffect(() => {
+        const preload = () => {
+            importCatalog();
+            importProductDetail();
+            importCart();
+        };
+        const idleId = window.requestIdleCallback
+            ? window.requestIdleCallback(preload, { timeout: 2500 })
+            : window.setTimeout(preload, 1800);
+        return () => {
+            if (window.cancelIdleCallback && typeof idleId === 'number') window.cancelIdleCallback(idleId);
+            else window.clearTimeout(idleId);
+        };
+    }, []);
 
     // Tab/sahifaga o'tish. Sahifa stackda bo'lsa — o'shanga qaytadi (tab kabi),
     // bo'lmasa — tepaga qo'shadi. Shu bilan orqaga tugmasi doim mantiqiy ishlaydi.
@@ -208,19 +233,21 @@ function AppContent() {
         <>
             <CartToast />
             {page === 'home' && <Home onNavigate={navigate} onProduct={openProduct} onScanner={() => navigate('scanner')} />}
-            {page === 'catalog' && <Catalog onProduct={openProduct} initialCategory={catalogCategory} />}
-            {page === 'productDetail' && <ProductDetail productId={productId} onBack={goBack} />}
-            {page === 'branches' && <Branches />}
-            {page === 'cart' && <Cart onNavigate={navigate} onPayment={openPayment} />}
-            {page === 'payment' && <Payment orderId={paymentOrderId} onDone={finishTo} />}
-            {page === 'profile' && <Profile onNavigate={navigate} />}
-            {page === 'favorites' && <Favorites onBack={goBack} onProduct={openProduct} />}
-            {page === 'orders' && <Orders onBack={goBack} />}
-            {page === 'addresses' && <Addresses onBack={goBack} />}
-            {page === 'bonus' && <Bonus onBack={goBack} />}
-            {page === 'settings' && <Settings onBack={goBack} />}
-            {page === 'scanner' && <Scanner onBack={goBack} />}
-            {page === 'prescription' && <PrescriptionUpload onBack={goBack} onCart={() => navigate('cart')} />}
+            <Suspense fallback={<PageLoader />}>
+                {page === 'catalog' && <Catalog onProduct={openProduct} initialCategory={catalogCategory} />}
+                {page === 'productDetail' && <ProductDetail productId={productId} onBack={goBack} />}
+                {page === 'branches' && <Branches />}
+                {page === 'cart' && <Cart onNavigate={navigate} onPayment={openPayment} />}
+                {page === 'payment' && <Payment orderId={paymentOrderId} onDone={finishTo} />}
+                {page === 'profile' && <Profile onNavigate={navigate} />}
+                {page === 'favorites' && <Favorites onBack={goBack} onProduct={openProduct} />}
+                {page === 'orders' && <Orders onBack={goBack} />}
+                {page === 'addresses' && <Addresses onBack={goBack} />}
+                {page === 'bonus' && <Bonus onBack={goBack} />}
+                {page === 'settings' && <Settings onBack={goBack} />}
+                {page === 'scanner' && <Scanner onBack={goBack} />}
+                {page === 'prescription' && <PrescriptionUpload onBack={goBack} onCart={() => navigate('cart')} />}
+            </Suspense>
             {showNav && <BottomNav active={page} onNavigate={navigate} />}
             <FloatCartBar page={page} onNavigate={navigate} />
         </>

@@ -98,7 +98,15 @@ export default function ProductDetail({ productId, onBack }) {
             </div>
 
             <div className="product-detail-img fade-up">
-                <DrugImage imageType={product.imageType} imageUrl={product.imageUrl} category={product.category} size={190} fit="cover" />
+                <DrugImage
+                    imageType={product.imageType}
+                    imageUrl={product.imageUrl}
+                    category={product.category}
+                    size={190}
+                    fit="cover"
+                    loading="eager"
+                    fetchPriority="high"
+                />
             </div>
 
             <div className="product-detail-info">

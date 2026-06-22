@@ -100,7 +100,15 @@ const CATEGORY_COLORS = {
     other: '#8A98A5',
 };
 
-export default function DrugImage({ imageType, imageUrl, category, size = 72, fit = 'contain' }) {
+export default function DrugImage({
+    imageType,
+    imageUrl,
+    category,
+    size = 72,
+    fit = 'contain',
+    loading = 'lazy',
+    fetchPriority = 'auto',
+}) {
     const [imgError, setImgError] = useState(false);
 
     if (imageUrl && !imgError) {
@@ -112,6 +120,9 @@ export default function DrugImage({ imageType, imageUrl, category, size = 72, fi
                 <img
                     src={imageUrl}
                     alt=""
+                    loading={loading}
+                    decoding="async"
+                    fetchPriority={fetchPriority}
                     style={{ width: '100%', height: '100%', objectFit: fit }}
                     onError={() => setImgError(true)}
                 />

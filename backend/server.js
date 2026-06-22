@@ -118,8 +118,17 @@ app.get('/api/health', (req, res) => {
 
 // ─── Admin panel static ───
 const adminDist = path.join(__dirname, '../admin/dist');
-app.use('/admin', express.static(adminDist));
+app.use('/admin', express.static(adminDist, {
+    setHeaders: (res, filePath) => {
+        if (filePath.endsWith('index.html')) {
+            res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+        } else if (filePath.includes(`${path.sep}assets${path.sep}`)) {
+            res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+        }
+    },
+}));
 app.get('/admin/*', (req, res) => {
+    res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
     res.sendFile(path.join(adminDist, 'index.html'));
 });
 
@@ -134,6 +143,11 @@ app.use(express.static(frontendDist, {
             res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
             res.setHeader('Pragma', 'no-cache');
             res.setHeader('Expires', '0');
+        } else if (filePath.includes(`${path.sep}assets${path.sep}`)) {
+            // Vite asset nomida content hash bor — o'zgarsa URL ham o'zgaradi.
+            res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+        } else if (/\.(?:jpg|jpeg|png|webp|svg|ico|woff2?)$/i.test(filePath)) {
+            res.setHeader('Cache-Control', 'public, max-age=604800, stale-while-revalidate=86400');
         }
     },
 }));

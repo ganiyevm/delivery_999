@@ -7,6 +7,11 @@ const cache = require('../utils/cache');
 
 const SYNCED_BRANCHES_TTL = 30_000;  // 30 soniya — branch isSynced kam o'zgaradi
 const COUNT_TTL = 60_000;             // 1 daqiqa — total count
+const PRODUCT_LIST_TTL = 10_000;      // narx/qoldiq tez yangilanadi, qisqa cache yetarli
+const PRODUCT_LIST_FIELDS = [
+    'name', 'category', 'manufacturer', 'country', 'ingredient',
+    'description', 'requiresRx', 'imageType', 'imageUrl',
+].join(' ');
 
 async function getSyncedBranchIds() {
     const cached = cache.get('synced_branches');
@@ -21,7 +26,23 @@ async function getSyncedBranchIds() {
 router.get('/', async (req, res, next) => {
     try {
         const { search, category, branchId, page = 1, limit = 20, sort = 'name' } = req.query;
-        const skip = (parseInt(page) - 1) * parseInt(limit);
+        const parsedPage = Math.max(1, parseInt(page, 10) || 1);
+        const parsedLimit = Math.min(50, Math.max(1, parseInt(limit, 10) || 20));
+        const skip = (parsedPage - 1) * parsedLimit;
+        const listCacheKey = `products:${JSON.stringify({
+            search: String(search || '').trim().toLowerCase(),
+            category: category || '',
+            branchId: branchId || '',
+            page: parsedPage,
+            limit: parsedLimit,
+            sort,
+        })}`;
+        const cachedResponse = cache.get(listCacheKey);
+        if (cachedResponse) {
+            res.set('X-Cache', 'HIT');
+            res.set('Cache-Control', 'public, max-age=5, stale-while-revalidate=15');
+            return res.json(cachedResponse);
+        }
         const filter = { isActive: true };
 
         if (category) filter.category = category;
@@ -37,7 +58,7 @@ router.get('/', async (req, res, next) => {
             ];
         }
 
-        let query = Product.find(filter);
+        let query = Product.find(filter).select(PRODUCT_LIST_FIELDS);
 
         // Sortlash
         if (sort === 'popular') {
@@ -49,10 +70,13 @@ router.get('/', async (req, res, next) => {
             query = query.sort({ name: 1 });
         }
 
-        const countKey = `count:${JSON.stringify(filter)}`;
+        const countKey = `count:${JSON.stringify({
+            search: String(search || '').trim().toLowerCase(),
+            category: category || '',
+        })}`;
         let total = cache.get(countKey);
         const [products] = await Promise.all([
-            query.skip(skip).limit(parseInt(limit)).lean(),
+            query.skip(skip).limit(parsedLimit).lean(),
             total === null ? Product.countDocuments(filter).then(n => { total = n; cache.set(countKey, n, COUNT_TTL); }) : Promise.resolve(),
         ]);
 
@@ -79,7 +103,7 @@ router.get('/', async (req, res, next) => {
             const syncedIds = await getSyncedBranchIds();
             const productIds = products.map(p => p._id);
             const stockAgg = await Stock.aggregate([
-                { $match: { product: { $in: productIds }, branch: { $in: syncedIds } } },
+                { $match: { product: { $in: productIds }, branch: { $in: syncedIds }, qty: { $gt: 0 } } },
                 {
                     $group: {
                         _id: '$product',
@@ -104,15 +128,19 @@ router.get('/', async (req, res, next) => {
             });
         }
 
-        res.json({
+        const response = {
             products,
             pagination: {
-                page: parseInt(page),
-                limit: parseInt(limit),
+                page: parsedPage,
+                limit: parsedLimit,
                 total,
-                pages: Math.ceil(total / parseInt(limit)),
+                pages: Math.ceil(total / parsedLimit),
             },
-        });
+        };
+        cache.set(listCacheKey, response, PRODUCT_LIST_TTL);
+        res.set('X-Cache', 'MISS');
+        res.set('Cache-Control', 'public, max-age=5, stale-while-revalidate=15');
+        res.json(response);
     } catch (error) {
         next(error);
     }
