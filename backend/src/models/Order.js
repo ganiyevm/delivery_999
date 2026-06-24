@@ -95,6 +95,11 @@ const orderSchema = new mongoose.Schema({
     statusHistory: [statusHistorySchema],
 
     operatorId: Number,
+    operatorSource: { type: String, default: '' },
+    stockReservedAt: Date,
+    stockReservedBy: { type: String, default: '' },
+    rejectionReason: { type: String, default: '' },
+    rejectionComment: { type: String, default: '' },
     courierId: Number,
     confirmedAt: Date,
     dispatchedAt: Date,

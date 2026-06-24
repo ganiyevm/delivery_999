@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="uz">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self'; script-src 'self'">
+    <title>Apteka999 Operator</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <header class="app-header">
+        <div class="brand-mark">999</div>
+        <div class="brand-copy">
+            <strong>Apteka999 Operator</strong>
+            <span id="branchName">Filial aniqlanmoqda...</span>
+        </div>
+        <div id="connection" class="connection offline"><span></span> Ulanmoqda</div>
+        <button id="hideButton" class="icon-button" title="Oynani yashirish" aria-label="Oynani yashirish">×</button>
+    </header>
+
+    <main>
+        <section id="emptyState" class="empty-state">
+            <div class="empty-icon">✓</div>
+            <h1>Yangi buyurtma yo‘q</h1>
+            <p>Dastur fonda ishlaydi. Buyurtma kelganda bu oyna avtomatik ochiladi.</p>
+        </section>
+
+        <section id="orderView" class="order-view hidden">
+            <div class="alert-strip">
+                <div><span class="pulse-dot"></span><strong>YANGI BUYURTMA</strong></div>
+                <span id="queueCount" class="queue-count">1 / 1</span>
+            </div>
+            <div class="order-head">
+                <div><span class="eyebrow">BUYURTMA RAQAMI</span><h1 id="orderNumber">—</h1></div>
+                <div class="age-box"><span>Kutilmoqda</span><strong id="orderAge">0 daqiqa</strong></div>
+            </div>
+            <section class="customer-panel">
+                <div><span class="eyebrow">MIJOZ</span><h2 id="customerName">—</h2></div>
+                <button id="copyPhone" class="phone-button"><span id="customerPhone">—</span><small>Nusxalash</small></button>
+            </section>
+            <section class="details-block"><h3>Dorilar</h3><div id="itemsList" class="items-list"></div></section>
+            <section class="summary-grid">
+                <div><span>Yetkazish</span><strong id="deliveryType">—</strong></div>
+                <div><span>To‘lov</span><strong id="paymentMethod">—</strong></div>
+            </section>
+            <div id="addressRow" class="address-row hidden"><span>Manzil</span><strong id="address">—</strong></div>
+            <div class="total-row"><span>Jami</span><strong id="orderTotal">0 so‘m</strong></div>
+            <div id="actionError" class="action-error hidden"></div>
+            <div class="actions">
+                <button id="rejectButton" class="button danger">Rad etish</button>
+                <button id="acceptButton" class="button primary">Qabul qilish</button>
+            </div>
+        </section>
+
+        <section id="resultView" class="result-view hidden">
+            <div id="resultIcon" class="result-icon">✓</div>
+            <h1 id="resultTitle">Tayyor</h1>
+            <p id="resultText"></p>
+            <button id="resultPhone" class="button call hidden">Telefonni nusxalash</button>
+            <button id="nextOrder" class="button primary">Keyingi buyurtma</button>
+        </section>
+    </main>
+
+    <div id="rejectModal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="rejectTitle">
+        <form id="rejectForm" class="modal-panel">
+            <div class="modal-head">
+                <div><span class="eyebrow">BUYURTMA</span><h2 id="rejectTitle">Rad etish sababini yozing</h2></div>
+                <button type="button" id="closeReject" class="icon-button">×</button>
+            </div>
+            <label for="rejectReason">Sabab</label>
+            <select id="rejectReason" required>
+                <option value="">Sababni tanlang</option>
+                <option>Dori mavjud emas</option>
+                <option>Qoldiq yetarli emas</option>
+                <option>Narx o‘zgargan</option>
+                <option>Yetkazib berish imkoni yo‘q</option>
+                <option>Boshqa sabab</option>
+            </select>
+            <label for="rejectComment">Batafsil izoh</label>
+            <textarea id="rejectComment" minlength="5" maxlength="500" rows="4" required placeholder="Masalan: Kreon 10000 yo‘q, o‘rniga Kreon 25000 mavjud..."></textarea>
+            <label class="call-check">
+                <input id="callConfirmed" type="checkbox" required>
+                <span>Mijozga qo‘ng‘iroq qilib, mavjud muqobil dorilarni tushuntiraman</span>
+            </label>
+            <div id="rejectError" class="action-error hidden"></div>
+            <div class="modal-actions">
+                <button type="button" id="cancelReject" class="button secondary">Bekor qilish</button>
+                <button type="submit" id="submitReject" class="button danger">Rad etishni tasdiqlash</button>
+            </div>
+        </form>
+    </div>
+    <script src="renderer.js"></script>
+</body>
+</html>

@@ -1,11 +1,14 @@
 {
   "name": "apteka999-sync-agent",
   "version": "1.0.0",
+  "author": "Apteka999",
   "description": "Markaziy ofizda ishlovchi sync agent — 16 filial SQL Server'idan o'qib Railway backend'ga yuboradi",
-  "main": "src/index.js",
+  "main": "desktop/main.js",
   "scripts": {
     "start": "node src/index.js",
     "dev": "nodemon src/index.js",
+    "desktop": "electron desktop/main.js",
+    "dist:win": "electron-builder --win nsis --x64",
     "once": "node src/index.js --once",
     "test-connection": "node src/test-connection.js",
     "service:install": "node install-service.js install",
@@ -20,6 +23,29 @@
     "node-windows": "^1.0.0-beta.8"
   },
   "devDependencies": {
+    "electron": "^42.5.0",
+    "electron-builder": "^26.15.3",
     "nodemon": "^3.1.7"
+  },
+  "build": {
+    "appId": "uz.apteka999.operator",
+    "productName": "Apteka999 Operator",
+    "asar": true,
+    "directories": { "output": "release" },
+    "files": ["desktop/**/*", "src/config.js", "package.json"],
+    "extraResources": [
+      { "from": "../frontend/public/logo999.jpg", "to": "logo999.jpg" }
+    ],
+    "win": {
+      "target": "nsis",
+      "icon": "build/icon.png",
+      "artifactName": "Apteka999-Operator-Setup-${version}.${ext}"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true
+    }
   }
 }
