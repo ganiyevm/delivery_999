@@ -24,7 +24,11 @@ const pollMs = Math.max(3, Number.parseInt(process.env.ORDER_POLL_SECONDS || '5'
 const api = axios.create({
     baseURL: `${backendUrl}/api/sync`,
     timeout: 15_000,
-    headers: { 'x-operator-key': apiKey, 'content-type': 'application/json' },
+    headers: {
+        'x-operator-key': apiKey,
+        'x-sync-key': apiKey,
+        'content-type': 'application/json',
+    },
 });
 
 let mainWindow;
@@ -137,7 +141,12 @@ async function pollOrders(forceShow = false) {
     } catch (error) {
         mainWindow.webContents.send('orders:connection', {
             connected: false,
-            message: error.response?.data?.error || error.message,
+            message: [
+                error.response?.data?.error || error.message,
+                envPath ? `Sozlama: ${envPath}` : 'Sozlama fayli topilmadi',
+                backendUrl ? `Backend: ${backendUrl}` : '',
+                Number.isInteger(branchNumber) ? `Filial: ${branchNumber}` : '',
+            ].filter(Boolean).join(' | '),
         });
         if (forceShow) showWindow();
     } finally {

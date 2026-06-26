@@ -8,6 +8,11 @@ function setConnection(connected, message = '') {
     element.className = `connection ${connected ? 'online' : 'offline'}`;
     element.innerHTML = `<span></span>${connected ? 'Ulangan' : 'Ulanmagan'}`;
     element.title = message;
+    const messageElement = $('connectionMessage');
+    if (messageElement) {
+        messageElement.textContent = connected ? '' : message;
+        messageElement.classList.toggle('hidden', connected || !message);
+    }
 }
 
 function orderAge(createdAt) {
