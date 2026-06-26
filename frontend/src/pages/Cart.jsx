@@ -258,6 +258,7 @@ export default function Cart({ onNavigate, onPayment }) {
             const { data } = await ordersAPI.create({
                 items: items.map(i => ({ productId: i.productId, qty: i.qty })),
                 deliveryType, address, apartment, entrance, floor, yandexDropType,
+                deliveryLocation: deliveryType === 'yandex' ? userLoc : null,
                 deliveryDate, deliverySlot, phone: normalizedPhone,
                 customerName: name,
                 branchId: selectedBranch,

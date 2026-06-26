@@ -41,6 +41,10 @@ const orderSchema = new mongoose.Schema({
         default: 'delivery',
     },
     address: { type: String, default: '' },
+    deliveryLocation: {
+        lat: { type: Number, default: 0 },
+        lng: { type: Number, default: 0 },
+    },
     apartment:      { type: String, default: '' },
     entrance:       { type: String, default: '' },
     floor:          { type: String, default: '' },

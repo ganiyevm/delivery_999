@@ -91,7 +91,7 @@ router.get('/operator/orders', operatorAuthMiddleware, async (req, res, next) =>
         const orders = await Order.find({ branch: branch._id, status: 'pending_operator' })
             .sort({ createdAt: 1 })
             .limit(30)
-            .select('orderNumber customerName phone items deliveryType address apartment entrance floor deliveryDate deliverySlot paymentMethod subtotal deliveryCost bonusDiscount total notes createdAt')
+            .select('orderNumber customerName phone items deliveryType address deliveryLocation apartment entrance floor deliveryDate deliverySlot paymentMethod subtotal deliveryCost bonusDiscount total notes createdAt')
             .lean();
         res.json({
             branch: { number: branch.number, name: branch.name },

@@ -1,4 +1,4 @@
-const { app, BrowserWindow, Tray, Menu, Notification, ipcMain, clipboard, screen, nativeImage } = require('electron');
+const { app, BrowserWindow, Tray, Menu, Notification, ipcMain, clipboard, screen, nativeImage, shell } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const axios = require('axios');
@@ -173,6 +173,14 @@ ipcMain.handle('orders:action', async (_event, payload) => {
 
 ipcMain.handle('clipboard:write', (_event, text) => {
     clipboard.writeText(String(text || ''));
+    return true;
+});
+ipcMain.handle('external:open', async (_event, url) => {
+    const target = String(url || '');
+    if (!/^https:\/\/(yandex\.uz|www\.google\.com|maps\.google\.com)\//.test(target)) {
+        throw new Error('Xarita havolasi noto\'g\'ri');
+    }
+    await shell.openExternal(target);
     return true;
 });
 ipcMain.on('window:hide', () => mainWindow?.hide());

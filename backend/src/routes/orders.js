@@ -14,6 +14,14 @@ function normalizeUzPhone(raw) {
     return '';
 }
 
+function normalizeLocation(raw) {
+    const lat = Number.parseFloat(raw?.lat);
+    const lng = Number.parseFloat(raw?.lng);
+    if (!Number.isFinite(lat) || !Number.isFinite(lng)) return { lat: 0, lng: 0 };
+    if (Math.abs(lat) > 90 || Math.abs(lng) > 180) return { lat: 0, lng: 0 };
+    return { lat, lng };
+}
+
 function getAppBaseUrl() {
     return (process.env.WEBAPP_URL || `https://t.me/${process.env.BOT_USERNAME || ''}`).replace(/\/$/, '');
 }
@@ -48,7 +56,7 @@ router.post('/', auth, async (req, res, next) => {
     try {
         const {
             items, deliveryType, address, apartment, entrance, floor, yandexDropType,
-            deliveryDate, deliverySlot, phone,
+            deliveryDate, deliverySlot, phone, deliveryLocation,
             customerName, branchId, paymentMethod,
             useBonusPoints, notes,
         } = req.body;
@@ -149,6 +157,7 @@ router.post('/', auth, async (req, res, next) => {
             branch: branchId,
             deliveryType,
             address: deliveryType !== 'pickup' ? address : branch.address,
+            deliveryLocation: deliveryType !== 'pickup' ? normalizeLocation(deliveryLocation) : { lat: 0, lng: 0 },
             apartment: apartment || '',
             entrance: entrance || '',
             floor: floor || '',

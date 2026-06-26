@@ -32,6 +32,31 @@ function paymentLabel(method) {
     return 'Payme';
 }
 
+function getOrderLocation(order) {
+    const lat = Number(order?.deliveryLocation?.lat);
+    const lng = Number(order?.deliveryLocation?.lng);
+    if (Number.isFinite(lat) && Number.isFinite(lng) && lat !== 0 && lng !== 0) {
+        return { lat, lng };
+    }
+    const match = String(order?.address || '').match(/(-?\d{1,2}\.\d{3,})\s*,\s*(-?\d{1,3}\.\d{3,})/);
+    if (!match) return null;
+    const parsedLat = Number.parseFloat(match[1]);
+    const parsedLng = Number.parseFloat(match[2]);
+    if (!Number.isFinite(parsedLat) || !Number.isFinite(parsedLng)) return null;
+    return { lat: parsedLat, lng: parsedLng };
+}
+
+function mapUrls(location) {
+    if (!location) return {};
+    const lat = location.lat.toFixed(6);
+    const lng = location.lng.toFixed(6);
+    return {
+        yandex: `https://yandex.uz/maps/?pt=${lng},${lat}&z=17`,
+        google: `https://www.google.com/maps/search/?api=1&query=${lat},${lng}`,
+        coords: `${lat}, ${lng}`,
+    };
+}
+
 function renderOrder() {
     const order = currentOrder();
     $('emptyState').classList.toggle('hidden', Boolean(order));
@@ -69,6 +94,11 @@ function renderOrder() {
     ].filter(Boolean).join(', ');
     $('addressRow').classList.toggle('hidden', !address || order.deliveryType === 'pickup');
     $('address').textContent = address;
+    const location = getOrderLocation(order);
+    $('mapActions').classList.toggle('hidden', !location);
+    $('openYandex').dataset.url = mapUrls(location).yandex || '';
+    $('openGoogle').dataset.url = mapUrls(location).google || '';
+    $('copyLocation').dataset.coords = mapUrls(location).coords || '';
     $('orderTotal').textContent = money(order.total);
     $('actionError').classList.add('hidden');
 }
@@ -178,6 +208,21 @@ $('copyPhone').addEventListener('click', async () => {
     if (!order?.phone) return;
     await window.operatorAPI.copy(order.phone);
     $('copyPhone').querySelector('small').textContent = 'Nusxalandi';
+});
+$('openYandex').addEventListener('click', () => {
+    const url = $('openYandex').dataset.url;
+    if (url) window.operatorAPI.openExternal(url);
+});
+$('openGoogle').addEventListener('click', () => {
+    const url = $('openGoogle').dataset.url;
+    if (url) window.operatorAPI.openExternal(url);
+});
+$('copyLocation').addEventListener('click', async () => {
+    const coords = $('copyLocation').dataset.coords;
+    if (!coords) return;
+    await window.operatorAPI.copy(coords);
+    $('copyLocation').textContent = 'Nusxalandi';
+    setTimeout(() => { $('copyLocation').textContent = 'Koordinata'; }, 1400);
 });
 $('acceptButton').addEventListener('click', acceptCurrent);
 $('rejectButton').addEventListener('click', openReject);
